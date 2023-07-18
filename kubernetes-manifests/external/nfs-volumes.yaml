@@ -1,0 +1,31 @@
+# Persistent Volume
+
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: nfs
+spec:
+  capacity:
+    storage: 500Mi
+  accessModes:
+    - ReadWriteMany
+  storageClassName: nfs
+  nfs:
+    server: host.minikube.internal # NFS server running in the localhost
+    path: /nfs-storage
+
+---
+
+# Persistent Volume Claim
+
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: nfs
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: nfs
+  resources:
+    requests:
+      storage: 500Mi

@@ -1,0 +1,19 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: network-util
+  labels:
+    role: network-util
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      role: network-util
+  template:
+    metadata:
+      labels:
+        role: network-util
+    spec:
+      containers:
+        - name: network-util
+          image: praqma/network-multitool
