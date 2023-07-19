@@ -16,8 +16,10 @@ kubectl config set-context my-context --cluster='minikube' --namespace='hlf-netw
 kubectl config use-context my-context
 ```
 
-3. Create a folder to be shared via NFS, and start an NFS server (locally):
+3. Enable the nfs and nfsd kernel modules, create a folder to be shared via NFS, and start a dockerized NFS server (locally):
 ```bash
+sudo modprobe nfs
+sudo modprobe nfsd
 mkdir ./nfs-storage
 docker run --name=nfs.server -itd --privileged=true --net=host -v ./nfs-storage:/nfs-storage -e NFS_EXPORT_0='/nfs-storage *(rw,no_root_squash)' erichough/nfs-server
 ```

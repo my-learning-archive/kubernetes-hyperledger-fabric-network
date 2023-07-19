@@ -1,57 +1,36 @@
-kind: Service
-apiVersion: v1
-metadata:
-  name: tls-ca
-spec:
-  selector:
-    app: blockchain
-    role: tls-ca
-  ports:
-    - name: tcp-7054
-      port: 7054
-      protocol: TCP
-
----
-
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: tls-ca
+  name: ca-cli
   labels:
     app: blockchain
-    role: tls-ca
+    role: ca-cli
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: blockchain
-      role: tls-ca
+      role: ca-cli
   template:
     metadata:
       labels:
         app: blockchain
-        role: tls-ca
+        role: ca-cli
     spec:
       volumes:
         - name: nfs
           persistentVolumeClaim:
             claimName: nfs
       containers:
-        - name: tls-ca
+        - name: ca-cli
           image: hyperledger/fabric-ca:1.4.9
-          args:
-            - sh
-            - -c
-            - fabric-ca-server start -b tls-admin:tls-adminpw -d --csr.hosts 'tls-ca'
           env:
             - name: FABRIC_CA_HOME
               value: /etc/hyperledger/fabric-ca-server
             - name: FABRIC_CA_SERVER_CA_CERTFILE
-              value: /etc/hyperledger/fabric-ca-server-config/tls-ca-cert.pem
+              value: /etc/hyperledger/fabric-ca-server-config/ca-cli-cert.pem
             - name: FABRIC_CA_SERVER_CA_KEYFILE
               value: /etc/hyperledger/fabric-ca-server-config/priv_sk
-            - name: FABRIC_CA_SERVER_CA_NAME
-              value: tls-ca
             - name: FABRIC_CA_SERVER_TLS_ENABLED
               value: "true"
           ports:
@@ -59,9 +38,11 @@ spec:
           volumeMounts:
             - name: nfs
               mountPath: /etc/hyperledger/fabric-ca-server-config
-              subPath: crypto-config/externalServices/tls-ca/tlsca/
+              subPath: crypto-config/externalServices/ca-cli/
+            - name: nfs
+              mountPath: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/
+              subPath: crypto-config/
           lifecycle:
             preStop:
               exec:
-                command: ["/bin/sh","-c","rm -rf /etc/hyperledger/fabric-ca-server-config/*"]
-
+                command: ["/bin/sh","-c","rm -rf /etc/hyperledger/fabric-ca-server-config/* /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/*"]

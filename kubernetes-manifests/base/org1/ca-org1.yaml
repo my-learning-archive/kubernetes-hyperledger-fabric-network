@@ -1,11 +1,11 @@
 kind: Service
 apiVersion: v1
 metadata:
-  name: tls-ca
+  name: ca-org1
 spec:
   selector:
     app: blockchain
-    role: tls-ca
+    role: ca-org1
   ports:
     - name: tcp-7054
       port: 7054
@@ -16,42 +16,42 @@ spec:
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: tls-ca
+  name: ca-org1
   labels:
     app: blockchain
-    role: tls-ca
+    role: ca-org1
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: blockchain
-      role: tls-ca
+      role: ca-org1
   template:
     metadata:
       labels:
         app: blockchain
-        role: tls-ca
+        role: ca-org1
     spec:
       volumes:
         - name: nfs
           persistentVolumeClaim:
             claimName: nfs
       containers:
-        - name: tls-ca
+        - name: ca-org1
           image: hyperledger/fabric-ca:1.4.9
           args:
             - sh
             - -c
-            - fabric-ca-server start -b tls-admin:tls-adminpw -d --csr.hosts 'tls-ca'
+            - fabric-ca-server start -b admin:adminpw -d --csr.hosts 'ca-org1'
           env:
             - name: FABRIC_CA_HOME
               value: /etc/hyperledger/fabric-ca-server
             - name: FABRIC_CA_SERVER_CA_CERTFILE
-              value: /etc/hyperledger/fabric-ca-server-config/tls-ca-cert.pem
+              value: /etc/hyperledger/fabric-ca-server-config/ca-org1-cert.pem
             - name: FABRIC_CA_SERVER_CA_KEYFILE
               value: /etc/hyperledger/fabric-ca-server-config/priv_sk
             - name: FABRIC_CA_SERVER_CA_NAME
-              value: tls-ca
+              value: ca-org1
             - name: FABRIC_CA_SERVER_TLS_ENABLED
               value: "true"
           ports:
@@ -59,9 +59,8 @@ spec:
           volumeMounts:
             - name: nfs
               mountPath: /etc/hyperledger/fabric-ca-server-config
-              subPath: crypto-config/externalServices/tls-ca/tlsca/
+              subPath: crypto-config/peerOrganizations/org1/ca/
           lifecycle:
             preStop:
               exec:
                 command: ["/bin/sh","-c","rm -rf /etc/hyperledger/fabric-ca-server-config/*"]
-

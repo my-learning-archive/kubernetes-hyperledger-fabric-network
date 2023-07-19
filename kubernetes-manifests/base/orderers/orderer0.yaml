@@ -1,0 +1,88 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: orderer0
+spec:
+  selector:
+    app: blockchain
+    role: orderer0
+  ports:
+    - name: tcp-7050
+      port: 7050
+      protocol: TCP
+
+---
+
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: orderer0
+  labels:
+    app: blockchain
+    role: orderer0
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: blockchain
+      role: orderer0
+  template:
+    metadata:
+      labels:
+        app: blockchain
+        role: orderer0
+    spec:
+      volumes:
+        - name: nfs
+          persistentVolumeClaim:
+            claimName: nfs
+      containers:
+        - name: orderer0
+          image: hyperledger/fabric-orderer:2.4.6
+          args:
+            - orderer
+          env:
+            - name: FABRIC_LOGGING_SPEC
+              value: INFO
+            - name: ORDERER_GENERAL_LISTENADDRESS
+              value: '0.0.0.0'
+            - name: ORDERER_GENERAL_LISTENPORT
+              value: '7050'
+            - name: ORDERER_GENERAL_GENESISMETHOD
+              value: file
+            - name: ORDERER_GENERAL_GENESISFILE
+              value: /var/hyperledger/orderer/orderer.genesis.block
+            - name: ORDERER_GENERAL_LOCALMSPID
+              value: OrdererMSP
+            - name: ORDERER_GENERAL_LOCALMSPDIR
+              value: /var/hyperledger/orderer/msp
+            - name: ORDERER_GENERAL_TLS_ENABLED
+              value: 'true'
+            - name: ORDERER_GENERAL_TLS_PRIVATEKEY
+              value: /var/hyperledger/orderer/tls/server.key
+            - name: ORDERER_GENERAL_TLS_CERTIFICATE
+              value: /var/hyperledger/orderer/tls/server.crt
+            - name: ORDERER_GENERAL_TLS_ROOTCAS
+              value: '[/var/hyperledger/orderer/tls/ca.crt]'
+            - name: ORDERER_GENERAL_CLUSTER_CLIENTCERTIFICATE
+              value: /var/hyperledger/orderer/tls/server.crt
+            - name: ORDERER_GENERAL_CLUSTER_CLIENTPRIVATEKEY
+              value: /var/hyperledger/orderer/tls/server.key
+            - name: ORDERER_GENERAL_CLUSTER_ROOTCAS
+              value: '[/var/hyperledger/orderer/tls/ca.crt]'
+          ports:
+            - containerPort: 7050
+          volumeMounts:
+            - name: nfs
+              mountPath: /var/hyperledger/orderer/orderer.genesis.block
+              subPath: config/genesis.block
+            - name: nfs
+              mountPath: /var/hyperledger/orderer/msp
+              subPath: crypto-config/ordererOrganizations/example.com/orderers/orderer0.example.com/msp
+            - name: nfs 
+              mountPath: /var/hyperledger/orderer/tls
+              subPath: crypto-config/ordererOrganizations/example.com/orderers/orderer0.example.com/tls
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh","-c","rm -rf /etc/hyperledger/fabric-ca-server-config/*"]
