@@ -24,7 +24,7 @@ printf "${C_BLUE_BOLD}\nteardown.sh:${C_BLUE}\n > TEARING DOWN NETWORK\n\n${C_RE
 kubectl delete -f kubernetes-manifests/base/tls-ca.yaml
 
 # orderer CA
-kubectl delete -f kubernetes-manifests/base/orderers/ca-orderer.yaml
+kubectl delete -f kubernetes-manifests/base/orderers/ca-orderers.yaml
 
 # org1 and org2 CA
 kubectl delete -f kubernetes-manifests/base/org1/ca-org1.yaml

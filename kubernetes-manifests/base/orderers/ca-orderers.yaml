@@ -1,11 +1,11 @@
 kind: Service
 apiVersion: v1
 metadata:
-  name: ca-orderer
+  name: ca-orderers
 spec:
   selector:
     app: blockchain
-    role: ca-orderer
+    role: ca-orderers
   ports:
     - name: tcp-7054
       port: 7054
@@ -16,42 +16,42 @@ spec:
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: ca-orderer
+  name: ca-orderers
   labels:
     app: blockchain
-    role: ca-orderer
+    role: ca-orderers
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: blockchain
-      role: ca-orderer
+      role: ca-orderers
   template:
     metadata:
       labels:
         app: blockchain
-        role: ca-orderer
+        role: ca-orderers
     spec:
       volumes:
         - name: nfs
           persistentVolumeClaim:
             claimName: nfs
       containers:
-        - name: ca-orderer
+        - name: ca-orderers
           image: hyperledger/fabric-ca:1.4.9
           args:
             - sh
             - -c
-            - fabric-ca-server start -b admin:adminpw -d --csr.hosts 'ca-orderer'
+            - fabric-ca-server start -b admin:adminpw -d --csr.hosts 'ca-orderers'
           env:
             - name: FABRIC_CA_HOME
               value: /etc/hyperledger/fabric-ca-server
             - name: FABRIC_CA_SERVER_CA_CERTFILE
-              value: /etc/hyperledger/fabric-ca-server-config/ca-orderer-cert.pem
+              value: /etc/hyperledger/fabric-ca-server-config/ca-orderers-cert.pem
             - name: FABRIC_CA_SERVER_CA_KEYFILE
               value: /etc/hyperledger/fabric-ca-server-config/priv_sk
             - name: FABRIC_CA_SERVER_CA_NAME
-              value: ca-orderer
+              value: ca-orderers
             - name: FABRIC_CA_SERVER_TLS_ENABLED
               value: "true"
           ports:

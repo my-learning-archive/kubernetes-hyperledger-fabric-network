@@ -35,31 +35,31 @@ spec:
           - name: CORE_PEER_ID
             value: cli
           - name: CORE_PEER_ADDRESS
-            value: TODO
+            value: peer0-org1:7051
           - name: CORE_PEER_LOCALMSPID
-            value: TODO
+            value: Org1MSP
           - name: CORE_CHAINCODE_KEEPALIVE
-            value: TODO
+            value: '10'
           - name: CORE_PEER_TLS_ENABLED
-            value: TODO
+            value: 'true'
           - name: CORE_PEER_TLS_CERT_FILE
-            value: TODO
+            value: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/peers/peer0-org1/tls/server.crt
           - name: CORE_PEER_TLS_KEY_FILE
-            value: TODO
+            value: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/peers/peer0-org1/tls/server.key
           - name: CORE_PEER_TLS_ROOTCERT_FILE
-            value: TODO
+            value: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/peers/peer0-org1/tls/ca.crt
           - name: CORE_PEER_TLS_CLIENTAUTHREQUIRED
-            value: TODO
+            value: 'false'
           - name: CORE_PEER_TLS_CLIENTROOTCAS_FILES
-            value: TODO
+            value: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/peers/peer0-org1/tls/ca.crt
           - name: CORE_PEER_TLS_CLIENTCERT_FILE
-            value: TODO
+            value: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/peers/peer0-org1/tls/server.crt
           - name: CORE_PEER_TLS_CLIENTKEY_FILE
-            value: TODO
+            value: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/peers/peer0-org1/tls/server.key
           - name: CORE_PEER_MSPCONFIGPATH
-            value: TODO
+            value: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/users/org1admin@org1/msp
           - name: ORDERER_TLS_CA
-            value: TODO
+            value: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/orderers/orderers/orderer0-orderers/tls/ca.crt
         volumeMounts:
           - name: nfs
             mountPath: /opt/gopath/src/github.com/chaincode
@@ -70,3 +70,7 @@ spec:
           - name: nfs
             mountPath: /etc/hyperledger/configtx
             subPath: config/
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh","-c","rm -rf /etc/hyperledger/configtx/*"]
