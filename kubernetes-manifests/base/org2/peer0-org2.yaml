@@ -1,0 +1,111 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: peer0-org2
+spec:
+  selector:
+    app: blockchain
+    role: peer0-org2
+  ports:
+    - name: tcp-7051
+      port: 7051
+      protocol: TCP
+    - name: tcp-7053
+      port: 7053
+      protocol: TCP
+
+---
+
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: peer0-org2
+  labels:
+    app: blockchain
+    role: peer0-org2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: blockchain
+      role: peer0-org2
+  template:
+    metadata:
+      labels:
+        app: blockchain
+        role: peer0-org2
+    spec:
+      volumes:
+        - name: nfs
+          persistentVolumeClaim:
+            claimName: nfs
+      containers:
+        - name: peer0-org2
+          image: hyperledger/fabric-peer:2.4.6
+          workingDir: /opt/gopath/src/github.com/hyperledger/fabric
+          args:
+            - sh
+            - -c
+            - peer node start
+          env:
+            - name: CORE_VM_ENDPOINT
+              value: unix:///host/var/run/docker.sock
+            - name: CORE_PEER_ID
+              value: peer0-org2
+            - name: FABRIC_LOGGING_SPEC
+              value: INFO
+            - name: CORE_PEER_TLS_ENABLED
+              value: 'true'
+            - name: CORE_PEER_TLS_CERT_FILE
+              value: /etc/hyperledger/fabric/tls/server.crt
+            - name: CORE_PEER_TLS_KEY_FILE
+              value: /etc/hyperledger/fabric/tls/server.key
+            - name: CORE_PEER_TLS_ROOTCERT_FILE
+              value: /etc/hyperledger/fabric/tls/ca.crt
+            - name: CORE_PEER_TLS_CLIENTAUTHREQUIRED
+              value: 'false'
+            - name: CORE_PEER_TLS_CLIENTROOTCAS_FILES
+              value: /etc/hyperledger/fabric/tls/ca.crt
+            - name: CORE_PEER_TLS_CLIENTCERT_FILE
+              value: /etc/hyperledger/fabric/tls/server.crt
+            - name: CORE_PEER_TLS_CLIENTKEY_FILE
+              value: /etc/hyperledger/fabric/tls/server.key
+            - name: CORE_PEER_LOCALMSPID
+              value: Org2MSP            
+            - name: CORE_PEER_MSPCONFIGPATH
+              value: /etc/hyperledger/fabric/msp/
+            - name: CORE_PEER_ADDRESS
+              value: peer0-org2:7051
+            - name: CORE_PEER_GOSSIP_EXTERNALENDPOINT
+              value: peer0-org2:7051
+            - name: CORE_PEER_CHAINCODELISTENADDRESS
+              value: 0.0.0.0:7052
+            - name: CORE_LEDGER_STATE_STATEDATABASE
+              value: CouchDB
+            - name: CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS
+              value: localhost:5984 # because couchDB is running in the same pod
+            - name: CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME
+              value: couchdb-peer0-org2-un
+            - name: CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD
+              value: couchdb-peer0-org2-pw
+            - name: CORE_LEDGER_STATE_COUCHDBCONFIG_MAXRETRIESONSTARTUP
+              value: '30'
+          ports:
+            - containerPort: 7051
+            - containerPort: 7053
+          volumeMounts:
+            - name: nfs
+              mountPath: /etc/hyperledger/fabric/msp
+              subPath: crypto-config/peerOrganizations/org2/peers/peer0-org2/msp
+            - name: nfs
+              mountPath: /etc/hyperledger/fabric/tls
+              subPath: crypto-config/peerOrganizations/org2/peers/peer0-org2/tls
+        - name: couchdb-peer0-org2
+          image: hyperledger/fabric-couchdb
+          env:
+            - name: COUCHDB_USER
+              value: couchdb-peer0-org2-un
+            - name: COUCHDB_PASSWORD
+              value: couchdb-peer0-org2-pw
+          ports:
+            - containerPort: 5984

@@ -19,58 +19,58 @@ spec:
           persistentVolumeClaim:
             claimName: nfs
       containers:
-      - name: cli
-        image: hyperledger/fabric-tools:2.4.6
-        tty: true
-        workingDir: /opt/gopath/src/github.com/hyperledger/fabric/peer
-        args:
-          - /bin/bash
-        env:
-          - name: GOPATH
-            value: /opt/gopath
-          - name: CORE_VM_ENDPOINT
-            value: unix:///host/var/run/docker.sock
-          - name: FABRIC_LOGGING_SPEC
-            value: INFO
-          - name: CORE_PEER_ID
-            value: cli
-          - name: CORE_PEER_ADDRESS
-            value: peer0-org1:7051
-          - name: CORE_PEER_LOCALMSPID
-            value: Org1MSP
-          - name: CORE_CHAINCODE_KEEPALIVE
-            value: '10'
-          - name: CORE_PEER_TLS_ENABLED
-            value: 'true'
-          - name: CORE_PEER_TLS_CERT_FILE
-            value: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/peers/peer0-org1/tls/server.crt
-          - name: CORE_PEER_TLS_KEY_FILE
-            value: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/peers/peer0-org1/tls/server.key
-          - name: CORE_PEER_TLS_ROOTCERT_FILE
-            value: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/peers/peer0-org1/tls/ca.crt
-          - name: CORE_PEER_TLS_CLIENTAUTHREQUIRED
-            value: 'false'
-          - name: CORE_PEER_TLS_CLIENTROOTCAS_FILES
-            value: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/peers/peer0-org1/tls/ca.crt
-          - name: CORE_PEER_TLS_CLIENTCERT_FILE
-            value: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/peers/peer0-org1/tls/server.crt
-          - name: CORE_PEER_TLS_CLIENTKEY_FILE
-            value: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/peers/peer0-org1/tls/server.key
-          - name: CORE_PEER_MSPCONFIGPATH
-            value: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/users/org1admin@org1/msp
-          - name: ORDERER_TLS_CA
-            value: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/orderers/orderers/orderer0-orderers/tls/ca.crt
-        volumeMounts:
-          - name: nfs
-            mountPath: /opt/gopath/src/github.com/chaincode
-            subPath: chaincodes/
-          - name: nfs
-            mountPath: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/
-            subPath: crypto-config/
-          - name: nfs
-            mountPath: /etc/hyperledger/configtx
-            subPath: config/
-        lifecycle:
-          preStop:
-            exec:
-              command: ["/bin/sh","-c","rm -rf /etc/hyperledger/configtx/*"]
+        - name: cli
+          image: hyperledger/fabric-tools:2.4.6
+          tty: true
+          workingDir: /opt/gopath/src/github.com/hyperledger/fabric/peer
+          args:
+            - /bin/bash
+          env:
+            - name: GOPATH
+              value: /opt/gopath
+            - name: CORE_VM_ENDPOINT
+              value: unix:///host/var/run/docker.sock
+            - name: FABRIC_LOGGING_SPEC
+              value: INFO
+            - name: CORE_PEER_ID
+              value: cli
+            - name: CORE_PEER_ADDRESS
+              value: peer0-org1:7051
+            - name: CORE_PEER_LOCALMSPID
+              value: Org1MSP
+            - name: CORE_CHAINCODE_KEEPALIVE
+              value: '10'
+            - name: CORE_PEER_TLS_ENABLED
+              value: 'true'
+            - name: CORE_PEER_TLS_CERT_FILE
+              value: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/peers/peer0-org1/tls/server.crt
+            - name: CORE_PEER_TLS_KEY_FILE
+              value: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/peers/peer0-org1/tls/server.key
+            - name: CORE_PEER_TLS_ROOTCERT_FILE
+              value: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/peers/peer0-org1/tls/ca.crt
+            - name: CORE_PEER_TLS_CLIENTAUTHREQUIRED
+              value: 'false'
+            - name: CORE_PEER_TLS_CLIENTROOTCAS_FILES
+              value: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/peers/peer0-org1/tls/ca.crt
+            - name: CORE_PEER_TLS_CLIENTCERT_FILE
+              value: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/peers/peer0-org1/tls/server.crt
+            - name: CORE_PEER_TLS_CLIENTKEY_FILE
+              value: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/peers/peer0-org1/tls/server.key
+            - name: CORE_PEER_MSPCONFIGPATH
+              value: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/users/org1admin@org1/msp
+            - name: ORDERER_TLS_CA
+              value: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/orderers/orderers/orderer0-orderers/tls/ca.crt
+          volumeMounts:
+            - name: nfs
+              mountPath: /opt/gopath/src/github.com/chaincode
+              subPath: chaincodes/
+            - name: nfs
+              mountPath: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/
+              subPath: crypto-config/
+            - name: nfs
+              mountPath: /etc/hyperledger/configtx
+              subPath: config/
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh","-c","rm -rf /etc/hyperledger/configtx/*"]

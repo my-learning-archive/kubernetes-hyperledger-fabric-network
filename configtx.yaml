@@ -42,9 +42,9 @@ Organizations:
                 Rule: "OR('OrdererMSP.admin')"
 
         OrdererEndpoints:
-            - orderer0:7050
-            - orderer1:7050
-            - orderer2:7050
+            - orderer0-orderers:7050
+            - orderer1-orderers:7050
+            - orderer2-orderers:7050
 
     - &Org1
         # DefaultOrg defines the organization which is used in the sampleconfig
@@ -219,21 +219,21 @@ Orderer: &OrdererDefaults
     OrdererType: etcdraft
 
     Addresses:
-        - orderer0:7050
-        - orderer1:7050
-        - orderer2:7050
+        - orderer0-orderers:7050
+        - orderer1-orderers:7050
+        - orderer2-orderers:7050
 
     EtcdRaft:
         Consenters:
-        - Host: orderer0
+        - Host: orderer0-orderers
           Port: 7050
           ClientTLSCert: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/orderers/orderers/orderer0-orderers/tls/server.crt
           ServerTLSCert: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/orderers/orderers/orderer0-orderers/tls/server.crt
-        - Host: orderer1
+        - Host: orderer1-orderers
           Port: 7050
           ClientTLSCert: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/orderers/orderers/orderer1-orderers/tls/server.crt
           ServerTLSCert: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/orderers/orderers/orderer1-orderers/tls/server.crt
-        - Host: orderer2
+        - Host: orderer2-orderers
           Port: 7050
           ClientTLSCert: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/orderers/orderers/orderer2-orderers/tls/server.crt
           ServerTLSCert: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/orderers/orderers/orderer2-orderers/tls/server.crt
