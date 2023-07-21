@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -o allexport && source .env && set +o allexport
+SCRIPT=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 
 
@@ -32,9 +33,9 @@ TLS_CA_ADMIN_PASSWORD=$7
 ##############################################################
 
 # in the .env file
-KUBERNETES_CA_CLI_ENDPOINT=${ENV_KUBERNETES_CA_CLI_ENDPOINT}
+KUBERNETES_CA_CLI_HOSTNAME=${ENV_KUBERNETES_CA_CLI_HOSTNAME}
 
-KUBERNETES_CA_CLI_POD_NAME=$(kubectl get pods | grep ^${KUBERNETES_CA_CLI_ENDPOINT}-* | awk '{print $1}')
+KUBERNETES_CA_CLI_POD_NAME=$(kubectl get pods | grep ^${KUBERNETES_CA_CLI_HOSTNAME}-* | awk '{print $1}')
 
 CA_CLI_INTERNAL_CRYPTO_CONFIG_PATH='/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/'
 
@@ -158,11 +159,13 @@ function createUser(){
 
 export FABRIC_CA_CLIENT_HOME=$FABRIC_CA_HOME/client/'${ORG_CA_HOSTNAME}'
 
+USER_ROLE_FLAG='"'${USER_ROLE_FLAG}'"'
+
 fabric-ca-client register \
     --caname '${ORG_CA_HOSTNAME}' \
     --id.name '${USER_USERNAME}' \
     --id.secret '${USER_PASSWORD}' \
-    --id.type '${USER_TYPE}' '${USER_ROLE_FLAG}' \
+    --id.type '${USER_TYPE}' ${USER_ROLE_FLAG} \
     --tls.certfiles '${ORG_CA_TLS_CERTIFICATE}'
 
 ###################### INTERNAL COMMAND ######################'
@@ -212,11 +215,13 @@ function createUserTLS(){
 
 export FABRIC_CA_CLIENT_HOME=$FABRIC_CA_HOME/client/'${TLS_CA_HOSTNAME}'
 
+USER_ROLE_FLAG='"'${USER_ROLE_FLAG}'"'
+
 fabric-ca-client register \
     --caname '${TLS_CA_HOSTNAME}' \
     --id.name '${USER_USERNAME}' \
     --id.secret '${USER_PASSWORD}' \
-    --id.type '${USER_TYPE}' '${USER_ROLE_FLAG}' \
+    --id.type '${USER_TYPE}' ${USER_ROLE_FLAG} \
     --tls.certfiles '${TLS_CA_TLS_CERTIFICATE}'
 
 ###################### INTERNAL COMMAND ######################'

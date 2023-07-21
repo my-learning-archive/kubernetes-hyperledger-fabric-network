@@ -11,12 +11,12 @@ SCRIPT=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 ##############################################################
 
 # in the .env file
-KUBERNETES_CLI_ENDPOINT=${ENV_KUBERNETES_CLI_ENDPOINT}
-KUBERNETES_ORDERER_ENDPOINT=${ENV_KUBERNETES_ORDERER_ENDPOINT}
+KUBERNETES_CLI_HOSTNAME=${ENV_KUBERNETES_CLI_HOSTNAME}
+KUBERNETES_TLS_CA_HOSTNAME=${ENV_KUBERNETES_TLS_CA_HOSTNAME}
+KUBERNETES_ORDERER_HOSTNAME=${ENV_KUBERNETES_ORDERER_HOSTNAME}
 BASE_CHANNEL_NAME=${ENV_BASE_CHANNEL_NAME} 
 SYS_CHANNEL_NAME=${ENV_SYS_CHANNEL_NAME}
 
-TLS_CA_HOSTNAME=tls-ca
 TLS_CA_ADMIN_USERNAME=tls-admin
 TLS_CA_ADMIN_PASSWORD=tls-adminpw
 
@@ -74,16 +74,16 @@ for ORG_NAME in "org1" "org2"; do
 
     printf "${C_BLUE_BOLD}\nstart.sh:${C_BLUE}\n > GENERATING CRYPTO-MATERIALS - ${ORG_NAME}\n\n${C_RESET}"
     
-    ORG_CA_HOSTNAME=ca-${ORG_NAME}
+    KUBERNETES_ORG_CA_HOSTNAME=ca-${ORG_NAME}
     ORG_CA_ADMIN_USERNAME=admin
     ORG_CA_ADMIN_PASSWORD=adminpw
 
-    . create-crypto.sh ${ORG_NAME} ${ORG_CA_HOSTNAME} ${ORG_CA_ADMIN_USERNAME} ${ORG_CA_ADMIN_PASSWORD} ${TLS_CA_HOSTNAME} ${TLS_CA_ADMIN_USERNAME} ${TLS_CA_ADMIN_PASSWORD}
+    . create-crypto.sh ${ORG_NAME} ${KUBERNETES_ORG_CA_HOSTNAME} ${ORG_CA_ADMIN_USERNAME} ${ORG_CA_ADMIN_PASSWORD} ${KUBERNETES_TLS_CA_HOSTNAME} ${TLS_CA_ADMIN_USERNAME} ${TLS_CA_ADMIN_PASSWORD}
     createOrg
-    createEntity "peer0" "peer0-${ORG_NAME}-un" "peer0-${ORG_NAME}-pw"
-    createEntityTLS "peer0" "peer0-${ORG_NAME}-un" "peer0-${ORG_NAME}-pw"
-    createEntity "peer1" "peer1-${ORG_NAME}-un" "peer1-${ORG_NAME}-pw"
-    createEntityTLS "peer1" "peer1-${ORG_NAME}-un" "peer1-${ORG_NAME}-pw"
+    createEntity peer0 peer0-${ORG_NAME}-un peer0-${ORG_NAME}-pw
+    createEntityTLS peer0 peer0-${ORG_NAME}-un peer0-${ORG_NAME}-pw
+    createEntity peer1 peer1-${ORG_NAME}-un peer1-${ORG_NAME}-pw
+    createEntityTLS peer1 peer1-${ORG_NAME}-un peer1-${ORG_NAME}-pw
 
 done
 
@@ -96,18 +96,18 @@ done
 
 printf "${C_BLUE_BOLD}\nstart.sh:${C_BLUE}\n > GENERATING CRYPTO-MATERIALS - orderers\n\n${C_RESET}"
 
-ORG_CA_HOSTNAME=ca-orderers
+KUBERNETES_ORG_CA_HOSTNAME=ca-orderers
 ORG_CA_ADMIN_USERNAME=admin
 ORG_CA_ADMIN_PASSWORD=adminpw
 
-. create-crypto.sh orderers ${ORG_CA_HOSTNAME} ${ORG_CA_ADMIN_USERNAME} ${ORG_CA_ADMIN_PASSWORD} ${TLS_CA_HOSTNAME} ${TLS_CA_ADMIN_USERNAME} ${TLS_CA_ADMIN_PASSWORD}
+. create-crypto.sh orderers ${KUBERNETES_ORG_CA_HOSTNAME} ${ORG_CA_ADMIN_USERNAME} ${ORG_CA_ADMIN_PASSWORD} ${KUBERNETES_TLS_CA_HOSTNAME} ${TLS_CA_ADMIN_USERNAME} ${TLS_CA_ADMIN_PASSWORD}
 createOrg
-createEntity "orderer0" "orderer0-orderers-un" "orderer0-orderers-pw"
-createEntityTLS "orderer0" "orderer0-orderers-un" "orderer0-orderers-pw"
-createEntity "orderer1" "orderer1-orderers-un" "orderer1-orderers-pw"
-createEntityTLS "orderer1" "orderer1-orderers-un" "orderer1-orderers-pw"
-createEntity "orderer2" "orderer2-orderers-un" "orderer2-orderers-pw"
-createEntityTLS "orderer2" "orderer2-orderers-un" "orderer2-orderers-pw"
+createEntity orderer0 orderer0-orderers-un orderer0-orderers-pw
+createEntityTLS orderer0 orderer0-orderers-un orderer0-orderers-pw
+createEntity orderer1 orderer1-orderers-un orderer1-orderers-pw
+createEntityTLS orderer1 orderer1-orderers-un orderer1-orderers-pw
+createEntity orderer2 orderer2-orderers-un orderer2-orderers-pw
+createEntityTLS orderer2 orderer2-orderers-un orderer2-orderers-pw
 
 
 
@@ -118,7 +118,7 @@ createEntityTLS "orderer2" "orderer2-orderers-un" "orderer2-orderers-pw"
 
 printf "${C_BLUE_BOLD}\nstart.sh:${C_BLUE}\n > GENERATING GENESIS BLOCK\n\n${C_RESET}"
 
-KUBERNETES_CLI_POD_NAME=$(kubectl get pods | grep ^${KUBERNETES_CLI_ENDPOINT}-* | awk '{print $1}')
+KUBERNETES_CLI_POD_NAME=$(kubectl get pods | grep ^${KUBERNETES_CLI_HOSTNAME}-* | awk '{print $1}')
 
 kubectl cp ${SCRIPT}/configtx.yaml ${KUBERNETES_CLI_POD_NAME}:${CLI_INTERNAL_CONFIGTX_PATH}/configtx.yaml
 
@@ -223,7 +223,7 @@ kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
 ###################### INTERNAL COMMAND ######################
 
 peer channel create \
-    -o '${KUBERNETES_ORDERER_ENDPOINT}:7050' \
+    -o '${KUBERNETES_ORDERER_HOSTNAME}:7050' \
     -c '${BASE_CHANNEL_NAME}' \
     -f '${CLI_INTERNAL_CONFIGTX_PATH}'/'${BASE_CHANNEL_NAME}'.tx \
     --tls --cafile ${ORDERER_TLS_CA}
@@ -262,7 +262,7 @@ export CORE_PEER_TLS_CLIENTCERT_FILE='${CLI_INTERNAL_CRYPTO_CONFIG_PATH}'/peerOr
 export CORE_PEER_TLS_CLIENTKEY_FILE='${CLI_INTERNAL_CRYPTO_CONFIG_PATH}'/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/ca.crt
 
 peer channel fetch oldest '${BASE_CHANNEL_NAME}'.block \
-    -o '${KUBERNETES_ORDERER_ENDPOINT}:7050' \
+    -o '${KUBERNETES_ORDERER_HOSTNAME}:7050' \
     -c '${BASE_CHANNEL_NAME}' \
     --tls --cafile ${ORDERER_TLS_CA}
 
@@ -299,7 +299,7 @@ export CORE_PEER_TLS_CLIENTCERT_FILE='${CLI_INTERNAL_CRYPTO_CONFIG_PATH}'/peerOr
 export CORE_PEER_TLS_CLIENTKEY_FILE='${CLI_INTERNAL_CRYPTO_CONFIG_PATH}'/peerOrganizations/'${ORG_NAME}'/peers/peer0-'${ORG_NAME}'/tls/ca.crt
 
 peer channel update \
-    -o '${KUBERNETES_ORDERER_ENDPOINT}':7050 \
+    -o '${KUBERNETES_ORDERER_HOSTNAME}':7050 \
     -c '${BASE_CHANNEL_NAME}' \
     -f '${CLI_INTERNAL_CONFIGTX_PATH}'/'${ORG_NAME^}'MSPanchors.tx \
     --tls --cafile ${ORDERER_TLS_CA}  
