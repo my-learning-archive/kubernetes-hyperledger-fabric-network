@@ -19,8 +19,9 @@ eval set -- "$VALID_ARGS"
 while [ : ]; do
     case "$1" in
         -h | --help)
-            printf "${C_BLUE_BOLD}\ncreate-user.sh:${C_BLUE}\n > HELP:\n\n${C_RESET}"
-            echo -e "Usage $0 [--<flags> <values>]"
+            printf "${C_BLUE_BOLD}\ncreate-crypto.sh:${C_BLUE}\n > HELP:\n\n${C_RESET}"
+            echo -e "Usage:"
+            echo -e "  $0 [--<flags> <values>]"
             echo -e "\nRequired flags:"
             echo -e "  --org-name: The name of the Hyperledger Fabric organization the contacted CAs belong to."
             echo -e "  --org-ca-hostname: The hostname of the Hyperledger Fabric organizational CA, for the generation of MSP certificates."
@@ -94,8 +95,6 @@ KUBERNETES_CA_CLI_HOSTNAME=${ENV_KUBERNETES_CA_CLI_HOSTNAME}
 
 KUBERNETES_CA_CLI_POD_NAME=$(kubectl get pods | grep ^${KUBERNETES_CA_CLI_HOSTNAME}-* | awk '{print $1}')
 
-CA_CLI_INTERNAL_CRYPTO_CONFIG_PATH='/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/'
-
 
 
 
@@ -104,18 +103,18 @@ CA_CLI_INTERNAL_CRYPTO_CONFIG_PATH='/opt/gopath/src/github.com/hyperledger/fabri
 ##############################################################
 
 [[ ${ORG_NAME} =~ ^org[1-99] ]] && {
-    ENTITY_TYPE='peer'
-    ORG_CRYPTO_MATERIAL_TARGET=${CA_CLI_INTERNAL_CRYPTO_CONFIG_PATH}/peerOrganizations/${ORG_NAME}
+    ENTITY_TYPE=peer
+    ORG_CRYPTO_MATERIAL_TARGET=peerOrganizations/${ORG_NAME}
     ORG_CA_TLS_CERTIFICATE=${ORG_CRYPTO_MATERIAL_TARGET}/ca/${ORG_CA_HOSTNAME}-cert.pem
 }
 
 [[ ${ORG_NAME} == orderers ]] && {
-    ENTITY_TYPE='orderer'
-    ORG_CRYPTO_MATERIAL_TARGET=${CA_CLI_INTERNAL_CRYPTO_CONFIG_PATH}/ordererOrganizations/${ORG_NAME}
+    ENTITY_TYPE=orderer
+    ORG_CRYPTO_MATERIAL_TARGET=ordererOrganizations/${ORG_NAME}
     ORG_CA_TLS_CERTIFICATE=${ORG_CRYPTO_MATERIAL_TARGET}/ca/${ORG_CA_HOSTNAME}-cert.pem
 }
 
-TLS_CA_TLS_CERTIFICATE=${CA_CLI_INTERNAL_CRYPTO_CONFIG_PATH}/externalServices/${TLS_CA_HOSTNAME}/tlsca/${TLS_CA_HOSTNAME}-cert.pem
+TLS_CA_TLS_CERTIFICATE=/externalServices/${TLS_CA_HOSTNAME}/tlsca/${TLS_CA_HOSTNAME}-cert.pem
 
 
 
@@ -133,8 +132,8 @@ export FABRIC_CA_CLIENT_HOME=$FABRIC_CA_HOME/client/'${ORG_CA_HOSTNAME}'
 fabric-ca-client enroll \
     -u https://'${ORG_CA_ADMIN_USERNAME}':'${ORG_CA_ADMIN_PASSWORD}'@'${ORG_CA_HOSTNAME}':7054 \
     --caname '${ORG_CA_HOSTNAME}' \
-    -M '${ORG_CRYPTO_MATERIAL_TARGET}'/msp \
-    --tls.certfiles '${ORG_CA_TLS_CERTIFICATE}'
+    -M ${CRYPTO_HOME}/'${ORG_CRYPTO_MATERIAL_TARGET}'/msp \
+    --tls.certfiles ${CRYPTO_HOME}/'${ORG_CA_TLS_CERTIFICATE}'
 
 ###################### INTERNAL COMMAND ######################'
 
@@ -147,8 +146,8 @@ export FABRIC_CA_CLIENT_HOME=$FABRIC_CA_HOME/client/'${TLS_CA_HOSTNAME}'
 fabric-ca-client enroll \
     -u https://'${TLS_CA_ADMIN_USERNAME}':'${TLS_CA_ADMIN_PASSWORD}'@'${TLS_CA_HOSTNAME}':7054 \
     --caname '${TLS_CA_HOSTNAME}' \
-    -M '${ORG_CRYPTO_MATERIAL_TARGET}'/tls \
-    --tls.certfiles '${TLS_CA_TLS_CERTIFICATE}'
+    -M ${CRYPTO_HOME}/'${ORG_CRYPTO_MATERIAL_TARGET}'/tls \
+    --tls.certfiles ${CRYPTO_HOME}/'${TLS_CA_TLS_CERTIFICATE}'
 
 ###################### INTERNAL COMMAND ######################'
 
@@ -164,9 +163,9 @@ function createOrg(){
     kubectl exec -it ${KUBERNETES_CA_CLI_POD_NAME} -- bash -c '
 ###################### INTERNAL COMMAND ######################
 
-mkdir -p '${ORG_CRYPTO_MATERIAL_TARGET}'/msp/cacerts
+mkdir -p ${CRYPTO_HOME}/'${ORG_CRYPTO_MATERIAL_TARGET}'/msp/cacerts
 
-cat << EOF > '${ORG_CRYPTO_MATERIAL_TARGET}'/msp/config.yaml
+cat << EOF > ${CRYPTO_HOME}/'${ORG_CRYPTO_MATERIAL_TARGET}'/msp/config.yaml
 NodeOUs:
   Enable: true
   ClientOUIdentifier:
@@ -257,7 +256,7 @@ function createUser(){
     kubectl exec -it ${KUBERNETES_CA_CLI_POD_NAME} -- bash -c '
 ###################### INTERNAL COMMAND ######################
 
-export FABRIC_CA_CLIENT_HOME=$FABRIC_CA_HOME/client/'${ORG_CA_HOSTNAME}'
+export FABRIC_CA_CLIENT_HOME=${FABRIC_CA_HOME}/client/'${ORG_CA_HOSTNAME}'
 
 USER_ROLE_FLAG='"'${USER_ROLE_FLAG}'"'
 
@@ -266,7 +265,7 @@ fabric-ca-client register \
     --id.name '${USER_USERNAME}' \
     --id.secret '${USER_PASSWORD}' \
     --id.type '${USER_TYPE}' ${USER_ROLE_FLAG} \
-    --tls.certfiles '${ORG_CA_TLS_CERTIFICATE}'
+    --tls.certfiles ${CRYPTO_HOME}/'${ORG_CA_TLS_CERTIFICATE}'
 
 ###################### INTERNAL COMMAND ######################'
 
@@ -275,14 +274,14 @@ fabric-ca-client register \
     kubectl exec -it ${KUBERNETES_CA_CLI_POD_NAME} -- bash -c '
 ###################### INTERNAL COMMAND ######################
 
-export FABRIC_CA_CLIENT_HOME=$FABRIC_CA_HOME/client/'${ORG_CA_HOSTNAME}'
+export FABRIC_CA_CLIENT_HOME=${FABRIC_CA_HOME}/client/'${ORG_CA_HOSTNAME}'
 
 fabric-ca-client enroll \
     -u https://'${USER_USERNAME}':'${USER_PASSWORD}'@'${ORG_CA_HOSTNAME}':7054 \
     --caname '${ORG_CA_HOSTNAME}' \
-    -M '${USER_MSP_PATH}' \
-    --tls.certfiles '${ORG_CA_TLS_CERTIFICATE}'
-cp '${ORG_CRYPTO_MATERIAL_TARGET}'/msp/config.yaml '${USER_MSP_PATH}'/config.yaml
+    -M ${CRYPTO_HOME}/'${USER_MSP_PATH}' \
+    --tls.certfiles ${CRYPTO_HOME}/'${ORG_CA_TLS_CERTIFICATE}'
+cp ${CRYPTO_HOME}/'${ORG_CRYPTO_MATERIAL_TARGET}'/msp/config.yaml ${CRYPTO_HOME}/'${USER_MSP_PATH}'/config.yaml
 
 ###################### INTERNAL COMMAND ######################'
 }
@@ -352,7 +351,7 @@ function createUserTLS(){
     kubectl exec -it ${KUBERNETES_CA_CLI_POD_NAME} -- bash -c '
 ###################### INTERNAL COMMAND ######################
 
-export FABRIC_CA_CLIENT_HOME=$FABRIC_CA_HOME/client/'${TLS_CA_HOSTNAME}'
+export FABRIC_CA_CLIENT_HOME=${FABRIC_CA_HOME}/client/'${TLS_CA_HOSTNAME}'
 
 USER_ROLE_FLAG='"'${USER_ROLE_FLAG}'"'
 
@@ -361,7 +360,7 @@ fabric-ca-client register \
     --id.name '${USER_USERNAME}' \
     --id.secret '${USER_PASSWORD}' \
     --id.type '${USER_TYPE}' ${USER_ROLE_FLAG} \
-    --tls.certfiles '${TLS_CA_TLS_CERTIFICATE}'
+    --tls.certfiles ${CRYPTO_HOME}/'${TLS_CA_TLS_CERTIFICATE}'
 
 ###################### INTERNAL COMMAND ######################'
 
@@ -370,19 +369,19 @@ fabric-ca-client register \
     kubectl exec -it ${KUBERNETES_CA_CLI_POD_NAME} -- bash -c '
 ###################### INTERNAL COMMAND ######################
 
-export FABRIC_CA_CLIENT_HOME=$FABRIC_CA_HOME/client/'${TLS_CA_HOSTNAME}'
+export FABRIC_CA_CLIENT_HOME=${FABRIC_CA_HOME}/client/'${TLS_CA_HOSTNAME}'
 
 fabric-ca-client enroll \
     -u https://'${USER_USERNAME}':'${USER_PASSWORD}'@'${TLS_CA_HOSTNAME}':7054 \
     --caname '${TLS_CA_HOSTNAME}' \
-    -M '${USER_TLS_PATH}' \
+    -M ${CRYPTO_HOME}/'${USER_TLS_PATH}' \
     --csr.hosts '${USER_HOSTNAME}' \
     --enrollment.profile tls \
-    --tls.certfiles '${TLS_CA_TLS_CERTIFICATE}'
+    --tls.certfiles ${CRYPTO_HOME}/'${TLS_CA_TLS_CERTIFICATE}'
 
-cp '${USER_TLS_PATH}'/tlscacerts/* '${USER_TLS_PATH}'/ca.crt
-cp '${USER_TLS_PATH}'/signcerts/* '${USER_TLS_PATH}'/client.crt
-cp '${USER_TLS_PATH}'/keystore/* '${USER_TLS_PATH}'/client.key
+cp ${CRYPTO_HOME}/'${USER_TLS_PATH}'/tlscacerts/* ${CRYPTO_HOME}/'${USER_TLS_PATH}'/ca.crt
+cp ${CRYPTO_HOME}/'${USER_TLS_PATH}'/signcerts/* ${CRYPTO_HOME}/'${USER_TLS_PATH}'/client.crt
+cp ${CRYPTO_HOME}/'${USER_TLS_PATH}'/keystore/* ${CRYPTO_HOME}/'${USER_TLS_PATH}'/client.key
 
 ###################### INTERNAL COMMAND ######################'
 }
@@ -438,14 +437,14 @@ function createEntity(){
     kubectl exec -it ${KUBERNETES_CA_CLI_POD_NAME} -- bash -c '
 ###################### INTERNAL COMMAND ######################
 
-export FABRIC_CA_CLIENT_HOME=$FABRIC_CA_HOME/client/'${ORG_CA_HOSTNAME}'
+export FABRIC_CA_CLIENT_HOME=${FABRIC_CA_HOME}/client/'${ORG_CA_HOSTNAME}'
 
 fabric-ca-client register \
     --caname '${ORG_CA_HOSTNAME}' \
     --id.name '${ENTITY_USERNAME}' \
     --id.secret '${ENTITY_PASSWORD}' \
     --id.type '${ENTITY_TYPE}' \
-    --tls.certfiles '${ORG_CA_TLS_CERTIFICATE}'
+    --tls.certfiles ${CRYPTO_HOME}/'${ORG_CA_TLS_CERTIFICATE}'
 
 ###################### INTERNAL COMMAND ######################'
 
@@ -454,16 +453,16 @@ fabric-ca-client register \
     kubectl exec -it ${KUBERNETES_CA_CLI_POD_NAME} -- bash -c '
 ###################### INTERNAL COMMAND ######################
 
-export FABRIC_CA_CLIENT_HOME=$FABRIC_CA_HOME/client/'${ORG_CA_HOSTNAME}'
+export FABRIC_CA_CLIENT_HOME=${FABRIC_CA_HOME}/client/'${ORG_CA_HOSTNAME}'
 
 fabric-ca-client enroll \
     -u https://'${ENTITY_USERNAME}':'${ENTITY_PASSWORD}'@'${ORG_CA_HOSTNAME}':7054 \
     --caname '${ORG_CA_HOSTNAME}' \
-    -M '${ENTITY_MSP_PATH}' \
-    --tls.certfiles '${ORG_CA_TLS_CERTIFICATE}' \
-    --csr.hosts '${ENTITY_NAME}'-'${ORG_NAME}'
+    -M ${CRYPTO_HOME}/'${ENTITY_MSP_PATH}' \
+    --csr.hosts '${ENTITY_NAME}'-'${ORG_NAME}' \
+    --tls.certfiles ${CRYPTO_HOME}/'${ORG_CA_TLS_CERTIFICATE}'
 
-cp '${ORG_CRYPTO_MATERIAL_TARGET}'/msp/config.yaml '${ENTITY_MSP_PATH}'/config.yaml
+cp ${CRYPTO_HOME}/'${ORG_CRYPTO_MATERIAL_TARGET}'/msp/config.yaml ${CRYPTO_HOME}/'${ENTITY_MSP_PATH}'/config.yaml
 
 ###################### INTERNAL COMMAND ######################'
 }
@@ -519,14 +518,14 @@ function createEntityTLS(){
     kubectl exec -it ${KUBERNETES_CA_CLI_POD_NAME} -- bash -c '
 ###################### INTERNAL COMMAND ######################
 
-export FABRIC_CA_CLIENT_HOME=$FABRIC_CA_HOME/client/'${TLS_CA_HOSTNAME}'
+export FABRIC_CA_CLIENT_HOME=${FABRIC_CA_HOME}/client/'${TLS_CA_HOSTNAME}'
 
 fabric-ca-client register \
     --caname '${TLS_CA_HOSTNAME}' \
     --id.name '${ENTITY_USERNAME}' \
     --id.secret '${ENTITY_PASSWORD}' \
     --id.type '${ENTITY_TYPE}' \
-    --tls.certfiles '${TLS_CA_TLS_CERTIFICATE}'
+    --tls.certfiles ${CRYPTO_HOME}/'${TLS_CA_TLS_CERTIFICATE}'
 
 ###################### INTERNAL COMMAND ######################'
 
@@ -535,23 +534,23 @@ fabric-ca-client register \
     kubectl exec -it ${KUBERNETES_CA_CLI_POD_NAME} -- bash -c '
 ###################### INTERNAL COMMAND ######################
 
-export FABRIC_CA_CLIENT_HOME=$FABRIC_CA_HOME/client/'${TLS_CA_HOSTNAME}'
+export FABRIC_CA_CLIENT_HOME=${FABRIC_CA_HOME}/client/'${TLS_CA_HOSTNAME}'
 
 fabric-ca-client enroll \
     -u https://'${ENTITY_USERNAME}':'${ENTITY_PASSWORD}'@'${TLS_CA_HOSTNAME}':7054 \
     --caname '${TLS_CA_HOSTNAME}' \
-    -M '${ENTITY_TLS_PATH}' \
+    -M ${CRYPTO_HOME}/'${ENTITY_TLS_PATH}' \
     --csr.hosts '${ENTITY_NAME}'-'${ORG_NAME}' \
     --csr.hosts 'cli' \
     --enrollment.profile tls \
-    --tls.certfiles '${TLS_CA_TLS_CERTIFICATE}'
+    --tls.certfiles ${CRYPTO_HOME}/'${TLS_CA_TLS_CERTIFICATE}'
 
-cp '${ENTITY_TLS_PATH}'/tlscacerts/* '${ENTITY_TLS_PATH}'/ca.crt
-cp '${ENTITY_TLS_PATH}'/signcerts/* '${ENTITY_TLS_PATH}'/server.crt
-cp '${ENTITY_TLS_PATH}'/keystore/* '${ENTITY_TLS_PATH}'/server.key
+cp ${CRYPTO_HOME}/'${ENTITY_TLS_PATH}'/tlscacerts/* ${CRYPTO_HOME}/'${ENTITY_TLS_PATH}'/ca.crt
+cp ${CRYPTO_HOME}/'${ENTITY_TLS_PATH}'/signcerts/* ${CRYPTO_HOME}/'${ENTITY_TLS_PATH}'/server.crt
+cp ${CRYPTO_HOME}/'${ENTITY_TLS_PATH}'/keystore/* ${CRYPTO_HOME}/'${ENTITY_TLS_PATH}'/server.key
 
-mkdir -p '${ORG_CRYPTO_MATERIAL_TARGET}'/msp/tlscacerts
-cp '${ENTITY_TLS_PATH}'/tlscacerts/* '${ORG_CRYPTO_MATERIAL_TARGET}'/msp/tlscacerts/ca.crt
+mkdir -p ${CRYPTO_HOME}/'${ORG_CRYPTO_MATERIAL_TARGET}'/msp/tlscacerts
+cp ${CRYPTO_HOME}/'${ENTITY_TLS_PATH}'/tlscacerts/* ${CRYPTO_HOME}/'${ORG_CRYPTO_MATERIAL_TARGET}'/msp/tlscacerts/ca.crt
 
 ###################### INTERNAL COMMAND ######################'
 }

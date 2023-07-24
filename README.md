@@ -36,7 +36,7 @@ docker run --name=nfs.server -itd --privileged=true --net=host -v ./nfs-storage:
 
 
 ---
-## Quick setup:
+## Setup:
 
 We will start by creating a basic HLF network with one cluster-wide TLS CA; three orderers; and two organizations, with two peers each.
 
@@ -70,4 +70,23 @@ We will start by creating a basic HLF network with one cluster-wide TLS CA; thre
  --tls-ca-admin-username tls-admin \
  --tls-ca-admin-password tls-adminpw \
  --user-role READER   
+```
+
+3. Deploy a chaincode:
+```bash
+./deploy-chaincode.sh \
+ --chaincode-relative-name fabcar \
+ --chaincode-label chaincode \
+ --chaincode-version 1 \
+ --chaincode-language golang \
+ --channel-name allarewelcome \
+ --channel-org-name org1 \
+ --signature-policy "OR('Org1MSP.member','Org2MSP.member')"
+```
+
+
+--- 
+## Quick setup:
+```bash
+./teardown.sh && ./start.sh && ./create-user.sh --org-name org1 --user-type client --user-hostname host.minikube.internal --user-username user1-org1 --user-password user1-org1-pw --org-ca-admin-username admin --org-ca-admin-password adminpw --tls-ca-admin-username tls-admin --tls-ca-admin-password tls-adminpw --user-role WRITER && ./create-user.sh --org-name org2 --user-type client --user-hostname host.minikube.internal --user-username user1-org2 --user-password user1-org2-pw --org-ca-admin-username admin --org-ca-admin-password adminpw --tls-ca-admin-username tls-admin --tls-ca-admin-password tls-adminpw --user-role READER   
 ```

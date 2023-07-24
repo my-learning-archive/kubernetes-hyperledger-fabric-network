@@ -20,7 +20,8 @@ while [ : ]; do
     case "$1" in
         -h | --help)
             printf "${C_BLUE_BOLD}\ncreate-user.sh:${C_BLUE}\n > HELP:\n\n${C_RESET}"
-            echo -e "Usage $0 [--<flags> <values>]"
+            echo -e "Usage:"
+            echo -e "  $0 [--<flags> <values>]"
             echo -e "\nRequired flags:"
             echo -e "  --org-name: The name of the Hyperledger Fabric organization the created user will belong to."
             echo -e "  --user-type: The type of the created user - 'client' or 'admin'."
@@ -32,7 +33,7 @@ while [ : ]; do
             echo -e "  --tls-ca-admin-username: The username of the TLS CA admin, for the generation of TLS certificates."
             echo -e "  --tls-ca-admin-password: The password of TLS CA admin, for the generation of TLS certificates."
             echo -e "\nOptional flags:"
-            echo -e "  --user-role: Custom attribute - the role of the created user in the Hyperledger Fabric network."
+            echo -e "  --user-role: Custom attribute - the role of the created user in the Hyperledger Fabric network, if applicable."
             exit 1
             ;;
         --org-name)
@@ -96,7 +97,7 @@ TLS_CA_ADMIN_USERNAME=${TLS_CA_ADMIN_USERNAME}
 TLS_CA_ADMIN_PASSWORD=${TLS_CA_ADMIN_PASSWORD}
 { set +x; } 2>/dev/null
 
-[[ -z ${ORG_NAME} || -z ${USER_TYPE} || -z ${USER_USERNAME} || -z ${USER_PASSWORD} || -z ${USER_HOSTNAME} || -z ${ORG_CA_ADMIN_USERNAME} || -z ${ORG_CA_ADMIN_PASSWORD} || -z ${TLS_CA_ADMIN_USERNAME} || -z ${TLS_CA_ADMIN_PASSWORD} || -z ${USER_ROLE} ]] && {
+[[ -z ${ORG_NAME} || -z ${USER_TYPE} || -z ${USER_ROLE} || -z ${USER_USERNAME} || -z ${USER_PASSWORD} || -z ${USER_HOSTNAME} || -z ${ORG_CA_ADMIN_USERNAME} || -z ${ORG_CA_ADMIN_PASSWORD} || -z ${TLS_CA_ADMIN_USERNAME} || -z ${TLS_CA_ADMIN_PASSWORD} ]] && {
     >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} one or more mandatory arguments have not been provided!${C_RESET}"
     exit 1   
 }

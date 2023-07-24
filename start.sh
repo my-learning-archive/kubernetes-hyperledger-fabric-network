@@ -20,8 +20,7 @@ SYS_CHANNEL_NAME=${ENV_SYS_CHANNEL_NAME}
 TLS_CA_ADMIN_USERNAME=tls-admin
 TLS_CA_ADMIN_PASSWORD=tls-adminpw
 
-CLI_INTERNAL_CRYPTO_CONFIG_PATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/
-CLI_INTERNAL_CONFIGTX_PATH=/etc/hyperledger/configtx/
+KUBERNETES_CLI_POD_NAME=$(kubectl get pods | grep ^${KUBERNETES_CLI_HOSTNAME}-* | awk '{print $1}')
 
 
 
@@ -175,18 +174,18 @@ createEntityTLS \
 
 printf "${C_BLUE_BOLD}\nstart.sh:${C_BLUE}\n > GENERATING GENESIS BLOCK\n\n${C_RESET}"
 
-KUBERNETES_CLI_POD_NAME=$(kubectl get pods | grep ^${KUBERNETES_CLI_HOSTNAME}-* | awk '{print $1}')
-
-kubectl cp ${SCRIPT}/configtx.yaml ${KUBERNETES_CLI_POD_NAME}:${CLI_INTERNAL_CONFIGTX_PATH}/configtx.yaml
+kubectl cp ${SCRIPT}/configtx.yaml ${KUBERNETES_CLI_POD_NAME}:/tmp/configtx.yaml
 
 kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
 ###################### INTERNAL COMMAND ######################
 
+mv /tmp/configtx.yaml ${CONFIGTX_HOME}/configtx.yaml
+
 configtxgen \
-    -configPath '${CLI_INTERNAL_CONFIGTX_PATH}'/ \
+    -configPath ${CONFIGTX_HOME} \
     -profile TwoOrgOrdererGenesis \
     -channelID '${SYS_CHANNEL_NAME}' \
-    -outputBlock '${CLI_INTERNAL_CONFIGTX_PATH}'/genesis.block
+    -outputBlock ${CONFIGTX_HOME}/genesis.block
 
 ###################### INTERNAL COMMAND ######################'
 
@@ -203,10 +202,10 @@ kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
 ###################### INTERNAL COMMAND ######################
 
 configtxgen \
-    -configPath '${CLI_INTERNAL_CONFIGTX_PATH}'/ \
+    -configPath ${CONFIGTX_HOME} \
     -profile TwoOrgChannel \
     -channelID '${BASE_CHANNEL_NAME}' \
-    -outputCreateChannelTx '${CLI_INTERNAL_CONFIGTX_PATH}'/'${BASE_CHANNEL_NAME}'.tx
+    -outputCreateChannelTx ${CONFIGTX_HOME}/'${BASE_CHANNEL_NAME}'.tx
 
 ###################### INTERNAL COMMAND ######################'
 
@@ -225,11 +224,11 @@ for ORG_NAME in "org1" "org2"; do
 ###################### INTERNAL COMMAND ######################
 
 configtxgen \
-    -configPath '${CLI_INTERNAL_CONFIGTX_PATH}'/ \
+    -configPath ${CONFIGTX_HOME} \
     -profile TwoOrgChannel \
     -channelID '${BASE_CHANNEL_NAME}' \
     -asOrg '${ORG_NAME^}'MSP \
-    -outputAnchorPeersUpdate '${CLI_INTERNAL_CONFIGTX_PATH}'/'${ORG_NAME^}'MSPanchors.tx
+    -outputAnchorPeersUpdate ${CONFIGTX_HOME}/'${ORG_NAME^}'MSPanchors.tx
 
 ###################### INTERNAL COMMAND ######################'
 
@@ -283,7 +282,7 @@ kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
 peer channel create \
     -o '${KUBERNETES_ORDERER_HOSTNAME}:7050' \
     -c '${BASE_CHANNEL_NAME}' \
-    -f '${CLI_INTERNAL_CONFIGTX_PATH}'/'${BASE_CHANNEL_NAME}'.tx \
+    -f ${CONFIGTX_HOME}/'${BASE_CHANNEL_NAME}'.tx \
     --tls --cafile ${ORDERER_TLS_CA}
 
 ###################### INTERNAL COMMAND ######################'
@@ -311,13 +310,13 @@ for ORG_NAME in "org1" "org2"; do
 
 export CORE_PEER_LOCALMSPID='${ORG_NAME^}'MSP
 export CORE_PEER_ADDRESS='${PEER_HOSTNAME}':7051
-export CORE_PEER_MSPCONFIGPATH='${CLI_INTERNAL_CRYPTO_CONFIG_PATH}'/peerOrganizations/'${ORG_NAME}'/users/'${ORG_NAME}'admin@'${ORG_NAME}'/msp
-export CORE_PEER_TLS_CERT_FILE='${CLI_INTERNAL_CRYPTO_CONFIG_PATH}'/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/server.crt
-export CORE_PEER_TLS_KEY_FILE='${CLI_INTERNAL_CRYPTO_CONFIG_PATH}'/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/server.key
-export CORE_PEER_TLS_ROOTCERT_FILE='${CLI_INTERNAL_CRYPTO_CONFIG_PATH}'/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/ca.crt
-export CORE_PEER_TLS_CLIENTROOTCAS_FILES='${CLI_INTERNAL_CRYPTO_CONFIG_PATH}'/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/server.crt
-export CORE_PEER_TLS_CLIENTCERT_FILE='${CLI_INTERNAL_CRYPTO_CONFIG_PATH}'/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/server.key
-export CORE_PEER_TLS_CLIENTKEY_FILE='${CLI_INTERNAL_CRYPTO_CONFIG_PATH}'/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/ca.crt
+export CORE_PEER_MSPCONFIGPATH=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/users/'${ORG_NAME}'admin@'${ORG_NAME}'/msp
+export CORE_PEER_TLS_CERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/server.crt
+export CORE_PEER_TLS_KEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/server.key
+export CORE_PEER_TLS_ROOTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/ca.crt
+export CORE_PEER_TLS_CLIENTROOTCAS_FILES=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/server.crt
+export CORE_PEER_TLS_CLIENTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/server.key
+export CORE_PEER_TLS_CLIENTKEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/ca.crt
 
 peer channel fetch oldest '${BASE_CHANNEL_NAME}'.block \
     -o '${KUBERNETES_ORDERER_HOSTNAME}:7050' \
@@ -348,18 +347,18 @@ for ORG_NAME in "org1" "org2"; do
 
 export CORE_PEER_LOCALMSPID='${ORG_NAME^}'MSP
 export CORE_PEER_ADDRESS=peer0-'${ORG_NAME}':7051
-export CORE_PEER_MSPCONFIGPATH='${CLI_INTERNAL_CRYPTO_CONFIG_PATH}'/peerOrganizations/'${ORG_NAME}'/users/'${ORG_NAME}'admin@'${ORG_NAME}'/msp
-export CORE_PEER_TLS_CERT_FILE='${CLI_INTERNAL_CRYPTO_CONFIG_PATH}'/peerOrganizations/'${ORG_NAME}'/peers/peer0-'${ORG_NAME}'/tls/server.crt
-export CORE_PEER_TLS_KEY_FILE='${CLI_INTERNAL_CRYPTO_CONFIG_PATH}'/peerOrganizations/'${ORG_NAME}'/peers/peer0-'${ORG_NAME}'/tls/server.key
-export CORE_PEER_TLS_ROOTCERT_FILE='${CLI_INTERNAL_CRYPTO_CONFIG_PATH}'/peerOrganizations/'${ORG_NAME}'/peers/peer0-'${ORG_NAME}'/tls/ca.crt
-export CORE_PEER_TLS_CLIENTROOTCAS_FILES='${CLI_INTERNAL_CRYPTO_CONFIG_PATH}'/peerOrganizations/'${ORG_NAME}'/peers/peer0-'${ORG_NAME}'/tls/server.crt
-export CORE_PEER_TLS_CLIENTCERT_FILE='${CLI_INTERNAL_CRYPTO_CONFIG_PATH}'/peerOrganizations/'${ORG_NAME}'/peers/peer0-'${ORG_NAME}'/tls/server.key
-export CORE_PEER_TLS_CLIENTKEY_FILE='${CLI_INTERNAL_CRYPTO_CONFIG_PATH}'/peerOrganizations/'${ORG_NAME}'/peers/peer0-'${ORG_NAME}'/tls/ca.crt
+export CORE_PEER_MSPCONFIGPATH=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/users/'${ORG_NAME}'admin@'${ORG_NAME}'/msp
+export CORE_PEER_TLS_CERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/peer0-'${ORG_NAME}'/tls/server.crt
+export CORE_PEER_TLS_KEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/peer0-'${ORG_NAME}'/tls/server.key
+export CORE_PEER_TLS_ROOTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/peer0-'${ORG_NAME}'/tls/ca.crt
+export CORE_PEER_TLS_CLIENTROOTCAS_FILES=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/peer0-'${ORG_NAME}'/tls/server.crt
+export CORE_PEER_TLS_CLIENTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/peer0-'${ORG_NAME}'/tls/server.key
+export CORE_PEER_TLS_CLIENTKEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/peer0-'${ORG_NAME}'/tls/ca.crt
 
 peer channel update \
     -o '${KUBERNETES_ORDERER_HOSTNAME}':7050 \
     -c '${BASE_CHANNEL_NAME}' \
-    -f '${CLI_INTERNAL_CONFIGTX_PATH}'/'${ORG_NAME^}'MSPanchors.tx \
+    -f ${CONFIGTX_HOME}/'${ORG_NAME^}'MSPanchors.tx \
     --tls --cafile ${ORDERER_TLS_CA}  
 
 ###################### INTERNAL COMMAND ######################'
@@ -381,12 +380,12 @@ for ORG_NAME in "org1" "org2"; do
 ###################### INTERNAL COMMAND ######################
 
 discover \
-    --configFile '${CLI_INTERNAL_CONFIGTX_PATH}'/discovery-conf-'${ORG_NAME}'.yaml \
+    --configFile ${CONFIGTX_HOME}/discovery-conf-'${ORG_NAME}'.yaml \
     --tlsCert ${CORE_PEER_TLS_CERT_FILE} \
     --tlsKey ${CORE_PEER_TLS_KEY_FILE} \
     --peerTLSCA ${CORE_PEER_TLS_ROOTCERT_FILE} \
-    --userKey $(ls '${CLI_INTERNAL_CRYPTO_CONFIG_PATH}'/peerOrganizations/'${ORG_NAME}'/users/'${ORG_NAME}'admin@'${ORG_NAME}'/msp/keystore/* | head -n 1) \
-    --userCert '${CLI_INTERNAL_CRYPTO_CONFIG_PATH}'/peerOrganizations/'${ORG_NAME}'/users/'${ORG_NAME}'admin@'${ORG_NAME}'/msp/signcerts/cert.pem \
+    --userKey $(ls ${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/users/'${ORG_NAME}'admin@'${ORG_NAME}'/msp/keystore/* | head -n 1) \
+    --userCert ${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/users/'${ORG_NAME}'admin@'${ORG_NAME}'/msp/signcerts/cert.pem \
     --MSP '${ORG_NAME^}'MSP \
     saveConfig
 

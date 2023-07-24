@@ -33,6 +33,8 @@ spec:
               value: /etc/hyperledger/fabric-ca-server-config/priv_sk
             - name: FABRIC_CA_SERVER_TLS_ENABLED
               value: "true"
+            - name: CRYPTO_HOME # custom env. variable
+              value: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto
           ports:
             - containerPort: 7054
           volumeMounts:
