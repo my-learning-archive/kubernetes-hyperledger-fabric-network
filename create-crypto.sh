@@ -10,19 +10,76 @@ SCRIPT=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 # INPUT VARIABLES 
 ##############################################################
 
+VALID_ARGS=$(getopt -o h\0 --long help,org-name:,org-ca-hostname:,org-ca-admin-username:,org-ca-admin-password:,tls-ca-hostname:,tls-ca-admin-username:,tls-ca-admin-password: -- "$@")
+if [[ $? -ne 0 ]]; then
+    exit 1;
+fi
+
+eval set -- "$VALID_ARGS"
+while [ : ]; do
+    case "$1" in
+        -h | --help)
+            printf "${C_BLUE_BOLD}\ncreate-user.sh:${C_BLUE}\n > HELP:\n\n${C_RESET}"
+            echo -e "Usage $0 [--<flags> <values>]"
+            echo -e "\nRequired flags:"
+            echo -e "  --org-name: The name of the Hyperledger Fabric organization the contacted CAs belong to."
+            echo -e "  --org-ca-hostname: The hostname of the Hyperledger Fabric organizational CA, for the generation of MSP certificates."
+            echo -e "  --org-ca-admin-username: The username of the Hyperledger Fabric organizational CA admin, for the generation of MSP certificates."
+            echo -e "  --org-ca-admin-password: The password of the Hyperledger Fabric organizational CA admin, for the generation of MSP certificates."
+            echo -e "  --tls-ca-hostname: The hostname of the TLS CA, for the generation of TLS certificates."
+            echo -e "  --tls-ca-admin-username: The username of the TLS CA admin, for the generation of TLS certificates."
+            echo -e "  --tls-ca-admin-password: The password of TLS CA admin, for the generation of TLS certificates."
+            exit 1
+            ;;
+        --org-name)
+            ORG_NAME=$2
+            shift 2
+            ;;
+        --org-ca-hostname)
+            ORG_CA_HOSTNAME=$2
+            shift 2
+            ;;
+        --org-ca-admin-username)
+            ORG_CA_ADMIN_USERNAME=$2
+            shift 2
+            ;;
+        --org-ca-admin-password)
+            ORG_CA_ADMIN_PASSWORD=$2
+            shift 2
+            ;;
+        --tls-ca-hostname)
+            TLS_CA_HOSTNAME=$2
+            shift 2
+            ;;
+        --tls-ca-admin-username)
+            TLS_CA_ADMIN_USERNAME=$2
+            shift 2
+            ;;
+        --tls-ca-admin-password)
+            TLS_CA_ADMIN_PASSWORD=$2
+            shift 2
+            ;;
+        --) shift; 
+            break 
+            ;;
+    esac
+done
+
+printf "${C_BLUE_BOLD}\ncrypto-config.sh:${C_BLUE}\n > DEFINING INPUT VARIABLE\n\n${C_RESET}"
+
 set -x
-ORG_NAME=$1
-ORG_CA_HOSTNAME=$2
-ORG_CA_ADMIN_USERNAME=$3
-ORG_CA_ADMIN_PASSWORD=$4
-TLS_CA_HOSTNAME=$5
-TLS_CA_ADMIN_USERNAME=$6
-TLS_CA_ADMIN_PASSWORD=$7
+ORG_NAME=${ORG_NAME}
+ORG_CA_HOSTNAME=${ORG_CA_HOSTNAME}
+ORG_CA_ADMIN_USERNAME=${ORG_CA_ADMIN_USERNAME}
+ORG_CA_ADMIN_PASSWORD=${ORG_CA_ADMIN_PASSWORD}
+TLS_CA_HOSTNAME=${TLS_CA_HOSTNAME}
+TLS_CA_ADMIN_USERNAME=${TLS_CA_ADMIN_USERNAME}
+TLS_CA_ADMIN_PASSWORD=${TLS_CA_ADMIN_PASSWORD}
 { set +x; } 2>/dev/null
 
 [[ -z ${ORG_NAME} || -z ${ORG_CA_HOSTNAME} || -z ${ORG_CA_ADMIN_USERNAME} || -z ${ORG_CA_ADMIN_PASSWORD} || -z ${TLS_CA_HOSTNAME} || -z ${TLS_CA_ADMIN_USERNAME} || -z ${TLS_CA_ADMIN_PASSWORD} ]] && {
-  >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} one or more mandatory arguments have not been provided!${C_RESET}"
-  exit 1   
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} one or more mandatory arguments have not been provided!${C_RESET}"
+    exit 1   
 }
 
 
@@ -128,8 +185,16 @@ NodeOUs:
 
 ###################### INTERNAL COMMAND ######################'
 
-    createUser "admin" "${ORG_NAME}admin" "${ORG_NAME}adminpw"
-    createUserTLS "admin" "${ORG_NAME}admin" "${ORG_NAME}adminpw" "host.minikube.internal"
+    createUser \
+        --user-type admin \
+        --user-username ${ORG_NAME}admin \
+        --user-password ${ORG_NAME}adminpw
+    
+    createUserTLS \
+        --user-type admin \
+        --user-hostname host.minikube.internal \
+        --user-username ${ORG_NAME}admin \
+        --user-password ${ORG_NAME}adminpw
 }
 
 
@@ -140,11 +205,46 @@ NodeOUs:
 ##############################################################
 
 function createUser(){
+
+    VALID_ARGS=$(getopt -o h\0 --long user-type:,user-role:,user-username:,user-password: -- "$@")
+    if [[ $? -ne 0 ]]; then
+        exit 1;
+    fi
+
+    eval set -- "$VALID_ARGS"
+    while [ : ]; do
+        case "$1" in
+            --user-type)
+                USER_TYPE=$2
+                shift 2
+                ;;
+            --user-role)
+                USER_ROLE=$2
+                shift 2
+                ;;
+            --user-username)
+                USER_USERNAME=$2
+                shift 2
+                ;;
+            --user-password)
+                USER_PASSWORD=$2
+                shift 2
+                ;;
+            --) shift; 
+                break 
+                ;;
+        esac
+    done
     
-    USER_TYPE=$1
-    USER_USERNAME=$2
-    USER_PASSWORD=$3
-    USER_ROLE=${4:-"NA"}
+    USER_TYPE=${USER_TYPE}
+    USER_ROLE=${USER_ROLE:-"NA"}
+    USER_USERNAME=${USER_USERNAME}
+    USER_PASSWORD=${USER_PASSWORD}
+
+    [[ -z ${USER_TYPE} || -z ${USER_ROLE} || -z ${USER_USERNAME} || -z ${USER_PASSWORD} ]] && {
+        >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} one or more mandatory arguments have not been provided!${C_RESET}"
+        exit 1   
+    }
 
     [[ ${USER_ROLE} == "NA" ]] || {
         USER_ROLE_FLAG="--id.attrs role=${USER_ROLE}:ecert"
@@ -196,11 +296,50 @@ cp '${ORG_CRYPTO_MATERIAL_TARGET}'/msp/config.yaml '${USER_MSP_PATH}'/config.yam
 
 function createUserTLS(){
 
-    USER_TYPE=$1
-    USER_USERNAME=$2
-    USER_PASSWORD=$3
-    USER_HOSTNAME=$4
-    USER_ROLE=${5:-"NA"}
+    VALID_ARGS=$(getopt -o h\0 --long user-type:,user-role:,user-hostname:,user-username:,user-password: -- "$@")
+    if [[ $? -ne 0 ]]; then
+        exit 1;
+    fi
+
+    eval set -- "$VALID_ARGS"
+    while [ : ]; do
+        case "$1" in
+            --user-type)
+                USER_TYPE=$2
+                shift 2
+                ;;
+            --user-role)
+                USER_ROLE=$2
+                shift 2
+                ;;
+            --user-hostname)
+                USER_HOSTNAME=$2
+                shift 2
+                ;;
+            --user-username)
+                USER_USERNAME=$2
+                shift 2
+                ;;
+            --user-password)
+                USER_PASSWORD=$2
+                shift 2
+                ;;
+            --) shift; 
+                break 
+                ;;
+        esac
+    done
+    
+    USER_TYPE=${USER_TYPE}
+    USER_ROLE=${USER_ROLE:-"NA"}
+    USER_HOSTNAME=${USER_HOSTNAME}
+    USER_USERNAME=${USER_USERNAME}
+    USER_PASSWORD=${USER_PASSWORD}
+
+    [[ -z ${USER_TYPE} || -z ${USER_ROLE} || -z ${USER_HOSTNAME} || -z ${USER_USERNAME} || -z ${USER_PASSWORD} ]] && {
+        >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} one or more mandatory arguments have not been provided!${C_RESET}"
+        exit 1   
+    }
 
     [[ ${USER_ROLE} == "NA" ]] || {
         USER_ROLE_FLAG="--id.attrs role=${USER_ROLE}:ecert"
@@ -257,9 +396,40 @@ cp '${USER_TLS_PATH}'/keystore/* '${USER_TLS_PATH}'/client.key
 
 function createEntity(){
 
-    ENTITY_NAME=$1
-    ENTITY_USERNAME=$2
-    ENTITY_PASSWORD=$3
+    VALID_ARGS=$(getopt -o h\0 --long entity-name:,entity-username:,entity-password: -- "$@")
+    if [[ $? -ne 0 ]]; then
+        exit 1;
+    fi
+
+    eval set -- "$VALID_ARGS"
+    while [ : ]; do
+        case "$1" in
+            --entity-name)
+                ENTITY_NAME=$2
+                shift 2
+                ;;
+            --entity-username)
+                ENTITY_USERNAME=$2
+                shift 2
+                ;;
+            --entity-password)
+                ENTITY_PASSWORD=$2
+                shift 2
+                ;;
+            --) shift; 
+                break 
+                ;;
+        esac
+    done
+    
+    ENTITY_NAME=${ENTITY_NAME}
+    ENTITY_USERNAME=${ENTITY_USERNAME}
+    ENTITY_PASSWORD=${ENTITY_PASSWORD}
+
+    [[ -z ${ENTITY_NAME} || -z ${ENTITY_USERNAME} || -z ${ENTITY_PASSWORD} ]] && {
+        >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} one or more mandatory arguments have not been provided!${C_RESET}"
+        exit 1   
+    }
 
     ENTITY_MSP_PATH=${ORG_CRYPTO_MATERIAL_TARGET}/${ENTITY_TYPE}s/${ENTITY_NAME}-${ORG_NAME}/msp
 
@@ -307,9 +477,40 @@ cp '${ORG_CRYPTO_MATERIAL_TARGET}'/msp/config.yaml '${ENTITY_MSP_PATH}'/config.y
 
 function createEntityTLS(){
 
-    ENTITY_NAME=$1
-    ENTITY_USERNAME=$2
-    ENTITY_PASSWORD=$3
+    VALID_ARGS=$(getopt -o h\0 --long entity-name:,entity-username:,entity-password: -- "$@")
+    if [[ $? -ne 0 ]]; then
+        exit 1;
+    fi
+
+    eval set -- "$VALID_ARGS"
+    while [ : ]; do
+        case "$1" in
+            --entity-name)
+                ENTITY_NAME=$2
+                shift 2
+                ;;
+            --entity-username)
+                ENTITY_USERNAME=$2
+                shift 2
+                ;;
+            --entity-password)
+                ENTITY_PASSWORD=$2
+                shift 2
+                ;;
+            --) shift; 
+                break 
+                ;;
+        esac
+    done
+    
+    ENTITY_NAME=${ENTITY_NAME}
+    ENTITY_USERNAME=${ENTITY_USERNAME}
+    ENTITY_PASSWORD=${ENTITY_PASSWORD}
+
+    [[ -z ${ENTITY_NAME} || -z ${ENTITY_USERNAME} || -z ${ENTITY_PASSWORD} ]] && {
+        >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} one or more mandatory arguments have not been provided!${C_RESET}"
+        exit 1   
+    }
 
     ENTITY_TLS_PATH=${ORG_CRYPTO_MATERIAL_TARGET}/${ENTITY_TYPE}s/${ENTITY_NAME}-${ORG_NAME}/tls
 

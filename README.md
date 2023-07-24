@@ -44,3 +44,30 @@ We will start by creating a basic HLF network with one cluster-wide TLS CA; thre
 ```bash
 ./teardown.sh && ./start.sh
 ```
+
+2. Create a few Hyperledger Fabric users - for instance, *user1-org1* belonging to *org1*, with *WRITER* role; and *user1-org2* belonging to *org2*, with *READER* role:
+```bash
+./create-user.sh \
+ --org-name org1 \
+ --user-type client \
+ --user-hostname host.minikube.internal \
+ --user-username user1-org1 \
+ --user-password user1-org1-pw \
+ --org-ca-admin-username admin \
+ --org-ca-admin-password adminpw \
+ --tls-ca-admin-username tls-admin \
+ --tls-ca-admin-password tls-adminpw \
+ --user-role WRITER
+
+./create-user.sh \
+ --org-name org2 \
+ --user-type client \
+ --user-hostname host.minikube.internal \
+ --user-username user1-org2 \
+ --user-password user1-org2-pw \
+ --org-ca-admin-username admin \
+ --org-ca-admin-password adminpw \
+ --tls-ca-admin-username tls-admin \
+ --tls-ca-admin-password tls-adminpw \
+ --user-role READER   
+```

@@ -55,6 +55,7 @@ kubectl apply -f kubernetes-manifests/base/cli.yaml
 while kubectl get pods | grep 'ContainerCreating'; do
     sleep 10
 done
+sleep 10
 
 # are all services are running?
 kubectl get pods | awk '{print $3}' | tail -n +2 | awk '!seen[$0]++ && NR>1{exit 1}'
@@ -78,12 +79,36 @@ for ORG_NAME in "org1" "org2"; do
     ORG_CA_ADMIN_USERNAME=admin
     ORG_CA_ADMIN_PASSWORD=adminpw
 
-    . create-crypto.sh ${ORG_NAME} ${KUBERNETES_ORG_CA_HOSTNAME} ${ORG_CA_ADMIN_USERNAME} ${ORG_CA_ADMIN_PASSWORD} ${KUBERNETES_TLS_CA_HOSTNAME} ${TLS_CA_ADMIN_USERNAME} ${TLS_CA_ADMIN_PASSWORD}
+    . create-crypto.sh \
+        --org-name ${ORG_NAME} \
+        --org-ca-hostname ${KUBERNETES_ORG_CA_HOSTNAME} \
+        --org-ca-admin-username ${ORG_CA_ADMIN_USERNAME} \
+        --org-ca-admin-password ${ORG_CA_ADMIN_PASSWORD} \
+        --tls-ca-hostname ${KUBERNETES_TLS_CA_HOSTNAME} \
+        --tls-ca-admin-username ${TLS_CA_ADMIN_USERNAME} \
+        --tls-ca-admin-password ${TLS_CA_ADMIN_PASSWORD}
+
     createOrg
-    createEntity peer0 peer0-${ORG_NAME}-un peer0-${ORG_NAME}-pw
-    createEntityTLS peer0 peer0-${ORG_NAME}-un peer0-${ORG_NAME}-pw
-    createEntity peer1 peer1-${ORG_NAME}-un peer1-${ORG_NAME}-pw
-    createEntityTLS peer1 peer1-${ORG_NAME}-un peer1-${ORG_NAME}-pw
+    
+    createEntity \
+        --entity-name peer0 \
+        --entity-username peer0-${ORG_NAME}-un \
+        --entity-password peer0-${ORG_NAME}-pw
+    
+    createEntityTLS \
+        --entity-name peer0 \
+        --entity-username peer0-${ORG_NAME}-un \
+        --entity-password peer0-${ORG_NAME}-pw
+    
+    createEntity \
+        --entity-name peer1 \
+        --entity-username peer1-${ORG_NAME}-un \
+        --entity-password peer1-${ORG_NAME}-pw
+    
+    createEntityTLS \
+        --entity-name peer1 \
+        --entity-username peer1-${ORG_NAME}-un \
+        --entity-password peer1-${ORG_NAME}-pw
 
 done
 
@@ -100,14 +125,46 @@ KUBERNETES_ORG_CA_HOSTNAME=ca-orderers
 ORG_CA_ADMIN_USERNAME=admin
 ORG_CA_ADMIN_PASSWORD=adminpw
 
-. create-crypto.sh orderers ${KUBERNETES_ORG_CA_HOSTNAME} ${ORG_CA_ADMIN_USERNAME} ${ORG_CA_ADMIN_PASSWORD} ${KUBERNETES_TLS_CA_HOSTNAME} ${TLS_CA_ADMIN_USERNAME} ${TLS_CA_ADMIN_PASSWORD}
+. create-crypto.sh \
+    --org-name orderers \
+    --org-ca-hostname ${KUBERNETES_ORG_CA_HOSTNAME} \
+    --org-ca-admin-username ${ORG_CA_ADMIN_USERNAME} \
+    --org-ca-admin-password ${ORG_CA_ADMIN_PASSWORD} \
+    --tls-ca-hostname ${KUBERNETES_TLS_CA_HOSTNAME} \
+    --tls-ca-admin-username ${TLS_CA_ADMIN_USERNAME} \
+    --tls-ca-admin-password ${TLS_CA_ADMIN_PASSWORD}
+
 createOrg
-createEntity orderer0 orderer0-orderers-un orderer0-orderers-pw
-createEntityTLS orderer0 orderer0-orderers-un orderer0-orderers-pw
-createEntity orderer1 orderer1-orderers-un orderer1-orderers-pw
-createEntityTLS orderer1 orderer1-orderers-un orderer1-orderers-pw
-createEntity orderer2 orderer2-orderers-un orderer2-orderers-pw
-createEntityTLS orderer2 orderer2-orderers-un orderer2-orderers-pw
+
+createEntity \
+    --entity-name orderer0 \
+    --entity-username orderer0-orderers-un \
+    --entity-password orderer0-orderers-pw
+
+createEntityTLS \
+    --entity-name orderer0 \
+    --entity-username orderer0-orderers-un \
+    --entity-password orderer0-orderers-pw
+
+createEntity \
+    --entity-name orderer1 \
+    --entity-username orderer1-orderers-un \
+    --entity-password orderer1-orderers-pw
+
+createEntityTLS \
+    --entity-name orderer1 \
+    --entity-username orderer1-orderers-un \
+    --entity-password orderer1-orderers-pw
+
+createEntity \
+    --entity-name orderer2 \
+    --entity-username orderer2-orderers-un \
+    --entity-password orderer2-orderers-pw
+
+createEntityTLS \
+    --entity-name orderer2 \
+    --entity-username orderer2-orderers-un \
+    --entity-password orderer2-orderers-pw
 
 
 
@@ -202,6 +259,7 @@ kubectl apply -f kubernetes-manifests/base/org2/peer1-org2.yaml
 while kubectl get pods | grep 'ContainerCreating'; do
     sleep 10
 done
+sleep 10
 
 # are all services are running?
 kubectl get pods | awk '{print $3}' | tail -n +2 | awk '!seen[$0]++ && NR>1{exit 1}'
