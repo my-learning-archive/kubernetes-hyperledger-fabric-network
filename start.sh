@@ -13,14 +13,10 @@ SCRIPT=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 # in the .env file
 KUBERNETES_CLI_HOSTNAME=${ENV_KUBERNETES_CLI_HOSTNAME}
 KUBERNETES_TLS_CA_HOSTNAME=${ENV_KUBERNETES_TLS_CA_HOSTNAME}
-KUBERNETES_ORDERER_HOSTNAME=${ENV_KUBERNETES_ORDERER_HOSTNAME}
-BASE_CHANNEL_NAME=${ENV_BASE_CHANNEL_NAME} 
-SYS_CHANNEL_NAME=${ENV_SYS_CHANNEL_NAME}
+BASE_CHANNEL_NAME=${ENV_BASE_CHANNEL_NAME}
 
 TLS_CA_ADMIN_USERNAME=tls-admin
 TLS_CA_ADMIN_PASSWORD=tls-adminpw
-
-KUBERNETES_CLI_POD_NAME=$(kubectl get pods | grep ^${KUBERNETES_CLI_HOSTNAME}-* | awk '{print $1}')
 
 
 
@@ -32,23 +28,23 @@ KUBERNETES_CLI_POD_NAME=$(kubectl get pods | grep ^${KUBERNETES_CLI_HOSTNAME}-* 
 printf "${C_BLUE_BOLD}\nstart.sh:${C_BLUE}\n > STARTING BASE CA SERVICES\n\n${C_RESET}"
 
 # NFS volumes
-kubectl apply -f kubernetes-manifests/external/nfs-volumes.yaml
+kubectl apply -f ${SCRIPT}/kubernetes-manifests/external/nfs-volumes.yaml
 
 # TLS CA
-kubectl apply -f kubernetes-manifests/base/tls-ca.yaml 
+kubectl apply -f ${SCRIPT}/kubernetes-manifests/base/tls-ca.yaml 
 
 # orderers CA
-kubectl apply -f kubernetes-manifests/base/orderers/ca-orderers.yaml
+kubectl apply -f ${SCRIPT}/kubernetes-manifests/base/orderers/ca-orderers.yaml
 
 # org1 and org2 CA
-kubectl apply -f kubernetes-manifests/base/org1/ca-org1.yaml
-kubectl apply -f kubernetes-manifests/base/org2/ca-org2.yaml
+kubectl apply -f ${SCRIPT}/kubernetes-manifests/base/org1/ca-org1.yaml
+kubectl apply -f ${SCRIPT}/kubernetes-manifests/base/org2/ca-org2.yaml
 
 # ca-cli
-kubectl apply -f kubernetes-manifests/base/ca-cli.yaml
+kubectl apply -f ${SCRIPT}/kubernetes-manifests/base/ca-cli.yaml
 
 # cli
-kubectl apply -f kubernetes-manifests/base/cli.yaml
+kubectl apply -f ${SCRIPT}/kubernetes-manifests/base/cli.yaml
 
 # wait for all containers to start
 while kubectl get pods | grep 'ContainerCreating'; do
@@ -174,6 +170,8 @@ createEntityTLS \
 
 printf "${C_BLUE_BOLD}\nstart.sh:${C_BLUE}\n > GENERATING GENESIS BLOCK\n\n${C_RESET}"
 
+KUBERNETES_CLI_POD_NAME=$(kubectl get pods | grep ^${KUBERNETES_CLI_HOSTNAME}-* | awk '{print $1}')
+
 kubectl cp ${SCRIPT}/configtx.yaml ${KUBERNETES_CLI_POD_NAME}:/tmp/configtx.yaml
 
 kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
@@ -184,7 +182,7 @@ mv /tmp/configtx.yaml ${CONFIGTX_HOME}/configtx.yaml
 configtxgen \
     -configPath ${CONFIGTX_HOME} \
     -profile TwoOrgOrdererGenesis \
-    -channelID '${SYS_CHANNEL_NAME}' \
+    -channelID ${SYS_CHANNEL_NAME} \
     -outputBlock ${CONFIGTX_HOME}/genesis.block
 
 ###################### INTERNAL COMMAND ######################'
@@ -243,16 +241,19 @@ done
 
 printf "${C_BLUE_BOLD}\nstart.sh:${C_BLUE}\n > STARTING BASE PEER SERVICES\n\n${C_RESET}"
 
+# external chaincode builders
+kubectl apply -f ${SCRIPT}/kubernetes-manifests/base/builders-config.yaml
+
 # orderers
-kubectl apply -f kubernetes-manifests/base/orderers/orderer0-orderers.yaml
-kubectl apply -f kubernetes-manifests/base/orderers/orderer1-orderers.yaml
-kubectl apply -f kubernetes-manifests/base/orderers/orderer2-orderers.yaml
+kubectl apply -f ${SCRIPT}/kubernetes-manifests/base/orderers/orderer0-orderers.yaml
+kubectl apply -f ${SCRIPT}/kubernetes-manifests/base/orderers/orderer1-orderers.yaml
+kubectl apply -f ${SCRIPT}/kubernetes-manifests/base/orderers/orderer2-orderers.yaml
 
 # peers
-kubectl apply -f kubernetes-manifests/base/org1/peer0-org1.yaml
-kubectl apply -f kubernetes-manifests/base/org1/peer1-org1.yaml
-kubectl apply -f kubernetes-manifests/base/org2/peer0-org2.yaml
-kubectl apply -f kubernetes-manifests/base/org2/peer1-org2.yaml
+kubectl apply -f ${SCRIPT}/kubernetes-manifests/base/org1/peer0-org1.yaml
+kubectl apply -f ${SCRIPT}/kubernetes-manifests/base/org1/peer1-org1.yaml
+kubectl apply -f ${SCRIPT}/kubernetes-manifests/base/org2/peer0-org2.yaml
+kubectl apply -f ${SCRIPT}/kubernetes-manifests/base/org2/peer1-org2.yaml
 
 # wait for all containers to start
 while kubectl get pods | grep 'ContainerCreating'; do
@@ -280,7 +281,7 @@ kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
 ###################### INTERNAL COMMAND ######################
 
 peer channel create \
-    -o '${KUBERNETES_ORDERER_HOSTNAME}:7050' \
+    -o ${ORDERER_ENDPOINT} \
     -c '${BASE_CHANNEL_NAME}' \
     -f ${CONFIGTX_HOME}/'${BASE_CHANNEL_NAME}'.tx \
     --tls --cafile ${ORDERER_TLS_CA}
@@ -319,7 +320,7 @@ export CORE_PEER_TLS_CLIENTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAM
 export CORE_PEER_TLS_CLIENTKEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/ca.crt
 
 peer channel fetch oldest '${BASE_CHANNEL_NAME}'.block \
-    -o '${KUBERNETES_ORDERER_HOSTNAME}:7050' \
+    -o ${ORDERER_ENDPOINT} \
     -c '${BASE_CHANNEL_NAME}' \
     --tls --cafile ${ORDERER_TLS_CA}
 
@@ -356,7 +357,7 @@ export CORE_PEER_TLS_CLIENTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAM
 export CORE_PEER_TLS_CLIENTKEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/peer0-'${ORG_NAME}'/tls/ca.crt
 
 peer channel update \
-    -o '${KUBERNETES_ORDERER_HOSTNAME}':7050 \
+    -o ${ORDERER_ENDPOINT} \
     -c '${BASE_CHANNEL_NAME}' \
     -f ${CONFIGTX_HOME}/'${ORG_NAME^}'MSPanchors.tx \
     --tls --cafile ${ORDERER_TLS_CA}  

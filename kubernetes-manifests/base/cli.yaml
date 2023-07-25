@@ -28,8 +28,6 @@ spec:
           env:
             - name: GOPATH
               value: /opt/gopath
-            - name: CORE_VM_ENDPOINT
-              value: localhost:2375
             - name: FABRIC_LOGGING_SPEC
               value: INFO
             - name: CORE_PEER_ID
@@ -60,6 +58,10 @@ spec:
               value: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/users/org1admin@org1/msp
             - name: ORDERER_TLS_CA
               value: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/orderers/orderers/orderer0-orderers/tls/ca.crt
+            - name: SYS_CHANNEL_NAME # custom env. variable
+              value: system-channel
+            - name: ORDERER_ENDPOINT # custom env. variable
+              value: orderer0-orderers:7050
             - name: CHAINCODE_HOME # custom env. variable
               value: /opt/gopath/src/github.com/chaincode
             - name: CRYPTO_HOME # custom env. variable

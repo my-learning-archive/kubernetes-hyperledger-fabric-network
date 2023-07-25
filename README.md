@@ -34,6 +34,12 @@ mkdir -p ./nfs-storage
 docker run --name=nfs.server -itd --privileged=true --net=host -v ./nfs-storage:/nfs-storage -e NFS_EXPORT_0='/nfs-storage *(rw,no_root_squash)' erichough/nfs-server
 ```
 
+Since we are going to test the network using a version of the *marbles* chaincode, suitable for external chaincode building:
+
+4. Build the *marbles* chaincode docker image inside the Kubernetes cluster:
+```bash
+minikube image build -t marbles ./chaincodes/marbles/
+```
 
 ---
 ## Setup:
@@ -72,21 +78,32 @@ We will start by creating a basic HLF network with one cluster-wide TLS CA; thre
  --user-role READER   
 ```
 
-3. Deploy a chaincode:
+4. Deploy a chaincode (the *marbles* chaincode, in this case):
 ```bash
 ./deploy-chaincode.sh \
- --chaincode-relative-name fabcar \
- --chaincode-label chaincode \
+ --chaincode-label marbles \
  --chaincode-version 1 \
- --chaincode-language golang \
- --channel-name allarewelcome \
+ --channel-name base-channel \
  --channel-org-name org1 \
  --signature-policy "OR('Org1MSP.member','Org2MSP.member')"
+```
+
+5. Test the chaincode (the previously deployed *marbles* chaincode, in this case):
+```bash
+# log inside cli pod:
+kubectl exec -it $(kubectl get pods | awk '{print $1}' | grep ^cli) -- bash
+
+# test the marbles chaincode:
+peer chaincode invoke --channelID base-channel --name marbles --isInit -o orderer0-orderers:7050 --peerAddresses peer0-org1:7051 --tlsRootCertFiles /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/peers/peer0-org1/tls/ca.crt --peerAddresses peer1-org1:7051 --tlsRootCertFiles /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/peers/peer1-org1/tls/ca.crt --peerAddresses peer0-org2:7051 --tlsRootCertFiles /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2/peers/peer0-org2/tls/ca.crt --peerAddresses peer1-org2:7051 --tlsRootCertFiles /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2/peers/peer1-org2/tls/ca.crt --tls --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/orderers/orderers/orderer0-orderers/tls/ca.crt -c '{"Args":["initMarble","marble1","blue","35","tom"]}' --waitForEvent
 ```
 
 
 --- 
 ## Quick setup:
 ```bash
-./teardown.sh && ./start.sh && ./create-user.sh --org-name org1 --user-type client --user-hostname host.minikube.internal --user-username user1-org1 --user-password user1-org1-pw --org-ca-admin-username admin --org-ca-admin-password adminpw --tls-ca-admin-username tls-admin --tls-ca-admin-password tls-adminpw --user-role WRITER && ./create-user.sh --org-name org2 --user-type client --user-hostname host.minikube.internal --user-username user1-org2 --user-password user1-org2-pw --org-ca-admin-username admin --org-ca-admin-password adminpw --tls-ca-admin-username tls-admin --tls-ca-admin-password tls-adminpw --user-role READER   
+./teardown.sh && ./start.sh && ./create-user.sh --org-name org1 --user-type client --user-hostname host.minikube.internal --user-username user1-org1 --user-password user1-org1-pw --org-ca-admin-username admin --org-ca-admin-password adminpw --tls-ca-admin-username tls-admin --tls-ca-admin-password tls-adminpw --user-role WRITER && ./create-user.sh --org-name org2 --user-type client --user-hostname host.minikube.internal --user-username user1-org2 --user-password user1-org2-pw --org-ca-admin-username admin --org-ca-admin-password adminpw --tls-ca-admin-username tls-admin --tls-ca-admin-password tls-adminpw --user-role READER && ./deploy-chaincode.sh --chaincode-label marbles --chaincode-version 1 --channel-name base-channel --channel-org-name org1 --signature-policy "OR('Org1MSP.member','Org2MSP.member')"
 ```
+
+--
+## TODO:
+- Change `configtx.yaml` to a *ConfigMap* mounted onto the *cli* container.
