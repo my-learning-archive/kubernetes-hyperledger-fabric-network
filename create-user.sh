@@ -19,7 +19,7 @@ eval set -- "$VALID_ARGS"
 while [ : ]; do
     case "$1" in
         -h | --help)
-            printf "${C_BLUE_BOLD}\ncreate-user.sh:${C_BLUE}\n > HELP:\n\n${C_RESET}"
+            printf "${C_BLUE_BOLD}\ncreate-user.sh:${C_BLUE}\n > HELP\n\n${C_RESET}"
             echo -e "Usage:"
             echo -e "  $0 [--<flags> <values>]"
             echo -e "\nRequired flags:"

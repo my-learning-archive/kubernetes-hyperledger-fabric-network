@@ -97,13 +97,30 @@ kubectl exec -it $(kubectl get pods | awk '{print $1}' | grep ^cli) -- bash
 peer chaincode invoke --channelID base-channel --name marbles --isInit -o orderer0-orderers:7050 --peerAddresses peer0-org1:7051 --tlsRootCertFiles /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/peers/peer0-org1/tls/ca.crt --peerAddresses peer1-org1:7051 --tlsRootCertFiles /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/peers/peer1-org1/tls/ca.crt --peerAddresses peer0-org2:7051 --tlsRootCertFiles /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2/peers/peer0-org2/tls/ca.crt --peerAddresses peer1-org2:7051 --tlsRootCertFiles /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2/peers/peer1-org2/tls/ca.crt --tls --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/orderers/orderers/orderer0-orderers/tls/ca.crt -c '{"Args":["initMarble","marble1","blue","35","tom"]}' --waitForEvent
 ```
 
+6. Create a new application channel (let's join only *org1* to it...):
+```bash
+./create-channel.sh \
+ --channel-name new-channel
+ --orgs-list org1
+```
+
+7. Create a new peer:
+```bash
+./create-peer.sh \
+ --org-name org1 \
+ --org-ca-admin-username admin \
+ --org-ca-admin-password adminpw \
+ --tls-ca-admin-username tls-admin \
+ --tls-ca-admin-password tls-adminpw
+```
 
 --- 
 ## Quick setup:
 ```bash
-./teardown.sh && ./start.sh && ./create-user.sh --org-name org1 --user-type client --user-hostname host.minikube.internal --user-username user1-org1 --user-password user1-org1-pw --org-ca-admin-username admin --org-ca-admin-password adminpw --tls-ca-admin-username tls-admin --tls-ca-admin-password tls-adminpw --user-role WRITER && ./create-user.sh --org-name org2 --user-type client --user-hostname host.minikube.internal --user-username user1-org2 --user-password user1-org2-pw --org-ca-admin-username admin --org-ca-admin-password adminpw --tls-ca-admin-username tls-admin --tls-ca-admin-password tls-adminpw --user-role READER && ./deploy-chaincode.sh --chaincode-label marbles --chaincode-version 1 --channel-name base-channel --channel-org-name org1 --signature-policy "OR('Org1MSP.member','Org2MSP.member')"
+./teardown.sh && ./start.sh && ./create-user.sh --org-name org1 --user-type client --user-hostname host.minikube.internal --user-username user1-org1 --user-password user1-org1-pw --org-ca-admin-username admin --org-ca-admin-password adminpw --tls-ca-admin-username tls-admin --tls-ca-admin-password tls-adminpw --user-role WRITER && ./create-user.sh --org-name org2 --user-type client --user-hostname host.minikube.internal --user-username user1-org2 --user-password user1-org2-pw --org-ca-admin-username admin --org-ca-admin-password adminpw --tls-ca-admin-username tls-admin --tls-ca-admin-password tls-adminpw --user-role READER && ./deploy-chaincode.sh --chaincode-label marbles --chaincode-version 1 --channel-name base-channel --channel-org-name org1 --signature-policy "OR('Org1MSP.member','Org2MSP.member')" && ./create-channel.sh --channel-name new-channel --orgs-list org1 && ./create-peer.sh --org-name org1 --org-ca-admin-username admin --org-ca-admin-password adminpw --tls-ca-admin-username tls-admin --tls-ca-admin-password tls-adminpw
 ```
 
 --
 ## TODO:
 - Migrate what should be implemented as k8s *Secrets* to that format.
+- Create script to join existing orgs to existing channels.

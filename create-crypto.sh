@@ -19,7 +19,7 @@ eval set -- "$VALID_ARGS"
 while [ : ]; do
     case "$1" in
         -h | --help)
-            printf "${C_BLUE_BOLD}\ncreate-crypto.sh:${C_BLUE}\n > HELP:\n\n${C_RESET}"
+            printf "${C_BLUE_BOLD}\ncreate-crypto.sh:${C_BLUE}\n > HELP\n\n${C_RESET}"
             echo -e "Usage:"
             echo -e "  $0 [--<flags> <values>]"
             echo -e "\nRequired flags:"
@@ -379,6 +379,8 @@ fabric-ca-client enroll \
     --enrollment.profile tls \
     --tls.certfiles ${CRYPTO_HOME}/'${TLS_CA_TLS_CERTIFICATE}'
 
+rm $(ls -t ${CRYPTO_HOME}/'${USER_TLS_PATH}'/keystore/* | tail -n +2) &> /dev/null
+
 cp ${CRYPTO_HOME}/'${USER_TLS_PATH}'/tlscacerts/* ${CRYPTO_HOME}/'${USER_TLS_PATH}'/ca.crt
 cp ${CRYPTO_HOME}/'${USER_TLS_PATH}'/signcerts/* ${CRYPTO_HOME}/'${USER_TLS_PATH}'/client.crt
 cp ${CRYPTO_HOME}/'${USER_TLS_PATH}'/keystore/* ${CRYPTO_HOME}/'${USER_TLS_PATH}'/client.key
@@ -544,6 +546,8 @@ fabric-ca-client enroll \
     --csr.hosts 'cli' \
     --enrollment.profile tls \
     --tls.certfiles ${CRYPTO_HOME}/'${TLS_CA_TLS_CERTIFICATE}'
+
+rm $(ls -t ${CRYPTO_HOME}/'${ENTITY_TLS_PATH}'/keystore/* | tail -n +2) &> /dev/null
 
 cp ${CRYPTO_HOME}/'${ENTITY_TLS_PATH}'/tlscacerts/* ${CRYPTO_HOME}/'${ENTITY_TLS_PATH}'/ca.crt
 cp ${CRYPTO_HOME}/'${ENTITY_TLS_PATH}'/signcerts/* ${CRYPTO_HOME}/'${ENTITY_TLS_PATH}'/server.crt

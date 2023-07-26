@@ -52,7 +52,7 @@ eval set -- "$VALID_ARGS"
 while [ : ]; do
     case "$1" in
         -h | --help)
-            printf "${C_BLUE_BOLD}\ndeploy-chaincode.sh:${C_BLUE}\n > HELP:\n\n${C_RESET}"
+            printf "${C_BLUE_BOLD}\ndeploy-chaincode.sh:${C_BLUE}\n > HELP\n\n${C_RESET}"
             echo -e "Usage:"
             echo -e "  $0 [--<flags> <values>]"
             echo -e "\nRequired flags:"
@@ -170,8 +170,8 @@ for ORG_NAME in ${CHANNEL_ORGS_LIST}; do
     kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
 ###################### INTERNAL COMMAND ######################
 
-mkdir -p ${CHAINCODE_HOME}/'${CHAINCODE_LABEL}'/'${CHAINCODE_VERSION}'
-cd ${CHAINCODE_HOME}/'${CHAINCODE_LABEL}'/'${CHAINCODE_VERSION}'
+mkdir -p ${CHAINCODE_HOME}/'${CHAINCODE_LABEL}'
+cd ${CHAINCODE_HOME}/'${CHAINCODE_LABEL}'
 
 cat << EOF > connection.json
 {
@@ -193,7 +193,7 @@ tar cfz code.tar.gz connection.json
 tar cfz '${CHAINCODE_LABEL}'-'${ORG_NAME}'.tgz code.tar.gz metadata.json
 
 rm -rvf connection.json code.tar.gz metadata.json &> /dev/null
-ls ${CHAINCODE_HOME}/'${CHAINCODE_LABEL}'/'${CHAINCODE_VERSION}'/'${CHAINCODE_LABEL}'-'${ORG_NAME}'.tgz
+ls ${CHAINCODE_HOME}/'${CHAINCODE_LABEL}'/'${CHAINCODE_LABEL}'-'${ORG_NAME}'.tgz
 
 ###################### INTERNAL COMMAND ######################'
 
@@ -225,9 +225,9 @@ export CORE_PEER_TLS_CLIENTROOTCAS_FILES='${CORE_PEER_TLS_CLIENTROOTCAS_FILES}'
 export CORE_PEER_TLS_CLIENTCERT_FILE='${CORE_PEER_TLS_CLIENTCERT_FILE}'
 export CORE_PEER_TLS_CLIENTKEY_FILE='${CORE_PEER_TLS_CLIENTKEY_FILE}'
 
-peer lifecycle chaincode install ${CHAINCODE_HOME}/'${CHAINCODE_LABEL}'/'${CHAINCODE_VERSION}'/'${CHAINCODE_LABEL}'-'${ORG_NAME}'.tgz
+peer lifecycle chaincode install ${CHAINCODE_HOME}/'${CHAINCODE_LABEL}'/'${CHAINCODE_LABEL}'-'${ORG_NAME}'.tgz
 
-peer lifecycle chaincode calculatepackageid ${CHAINCODE_HOME}/'${CHAINCODE_LABEL}'/'${CHAINCODE_VERSION}'/'${CHAINCODE_LABEL}'-'${ORG_NAME}'.tgz > /tmp/'${CHAINCODE_LABEL}'-'${ORG_NAME}'-package-id
+peer lifecycle chaincode calculatepackageid ${CHAINCODE_HOME}/'${CHAINCODE_LABEL}'/'${CHAINCODE_LABEL}'-'${ORG_NAME}'.tgz > /tmp/'${CHAINCODE_LABEL}'-'${ORG_NAME}'-package-id
 cat /tmp/'${CHAINCODE_LABEL}'-'${ORG_NAME}'-package-id
 
 ###################### INTERNAL COMMAND ######################'
@@ -344,7 +344,7 @@ export CORE_PEER_TLS_CLIENTKEY_FILE='${CORE_PEER_TLS_CLIENTKEY_FILE}'
 COLLECTIONS_CONFIG_FLAG='"'${COLLECTIONS_CONFIG_FLAG}'"'
 SIGNATURE_POLICY_FLAG=$(echo '"'${SIGNATURE_POLICY_FLAG}'"' | sed "s/%/'\''/g")
 
-PACKAGE_ID=$(peer lifecycle chaincode calculatepackageid ${CHAINCODE_HOME}/'${CHAINCODE_LABEL}'/'${CHAINCODE_VERSION}'/'${CHAINCODE_LABEL}'-'${ORG_NAME}'.tgz)
+PACKAGE_ID=$(peer lifecycle chaincode calculatepackageid ${CHAINCODE_HOME}/'${CHAINCODE_LABEL}'/'${CHAINCODE_LABEL}'-'${ORG_NAME}'.tgz)
 
 peer lifecycle chaincode approveformyorg \
     --channelID '${CHANNEL_NAME}' \

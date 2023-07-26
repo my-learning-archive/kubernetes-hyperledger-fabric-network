@@ -322,14 +322,11 @@ peer channel fetch oldest '${BASE_CHANNEL_NAME}'.block \
     --tls --cafile ${ORDERER_TLS_CA}
 
 while sleep 10; do
-
     peer channel join \
         -b '${BASE_CHANNEL_NAME}'.block
-
     if [ $? -eq 0 ]; then
         break
     fi
-
 done
 
 ###################### INTERNAL COMMAND ######################'
