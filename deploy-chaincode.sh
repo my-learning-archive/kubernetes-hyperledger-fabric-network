@@ -170,8 +170,6 @@ for ORG_NAME in ${CHANNEL_ORGS_LIST}; do
     kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
 ###################### INTERNAL COMMAND ######################
 
-BUILD_COMMAND='"'${BUILD_COMMAND}'"'
-
 mkdir -p ${CHAINCODE_HOME}/'${CHAINCODE_LABEL}'/'${CHAINCODE_VERSION}'
 cd ${CHAINCODE_HOME}/'${CHAINCODE_LABEL}'/'${CHAINCODE_VERSION}'
 
