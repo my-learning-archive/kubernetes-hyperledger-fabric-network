@@ -133,6 +133,11 @@ for ORG_NAME in ${CHANNEL_ORGS_LIST}; do
   PEERS_LIST="${PEERS_LIST} "$(kubectl get services | awk '{print $1}' | grep ^peer | grep ${ORG_NAME} | sort)
 done
 
+[[ ${PEERS_LIST} == "" ]] && {
+  >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} could not get the list of peers in the ${CHANNEL_NAME} channel - check if ${CHANNEL_NAME} exists or if ${CHANNEL_ORG_NAME} belongs to it!${C_RESET}"
+  exit 1  
+}
+
 # peer parameters for long commands
 PEER_PARAMETERS=""
 for PEER_HOSTNAME in ${PEERS_LIST}; do
@@ -140,6 +145,7 @@ for PEER_HOSTNAME in ${PEERS_LIST}; do
   PEER_PARAMETERS="${PEER_PARAMETERS} --peerAddresses ${CORE_PEER_ADDRESS} --tlsRootCertFiles ${CORE_PEER_TLS_ROOTCERT_FILE}"
 done
 
+# additional flags
 [[ ${COLLECTIONS_CONFIG} == "NA" ]] || {
   COLLECTIONS_CONFIG_FLAG="--collections-config ${CLI_CHAINCODE_DIR}/${COLLECTIONS_CONFIG}"
 }

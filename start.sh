@@ -30,6 +30,10 @@ printf "${C_BLUE_BOLD}\nstart.sh:${C_BLUE}\n > STARTING BASE CA SERVICES\n\n${C_
 # NFS volumes
 kubectl apply -f ${SCRIPT}/kubernetes-manifests/external/nfs-volumes.yaml
 
+# configuration files - ConfigMaps
+kubectl apply -f ${SCRIPT}/kubernetes-manifests/base/configtx.yaml
+kubectl apply -f ${SCRIPT}/kubernetes-manifests/base/builders-config.yaml
+
 # TLS CA
 kubectl apply -f ${SCRIPT}/kubernetes-manifests/base/tls-ca.yaml 
 
@@ -172,12 +176,8 @@ printf "${C_BLUE_BOLD}\nstart.sh:${C_BLUE}\n > GENERATING GENESIS BLOCK\n\n${C_R
 
 KUBERNETES_CLI_POD_NAME=$(kubectl get pods | grep ^${KUBERNETES_CLI_HOSTNAME}-* | awk '{print $1}')
 
-kubectl cp ${SCRIPT}/configtx.yaml ${KUBERNETES_CLI_POD_NAME}:/tmp/configtx.yaml
-
 kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
 ###################### INTERNAL COMMAND ######################
-
-mv /tmp/configtx.yaml ${CONFIGTX_HOME}/configtx.yaml
 
 configtxgen \
     -configPath ${CONFIGTX_HOME} \
@@ -240,9 +240,6 @@ done
 ##############################################################
 
 printf "${C_BLUE_BOLD}\nstart.sh:${C_BLUE}\n > STARTING BASE PEER SERVICES\n\n${C_RESET}"
-
-# external chaincode builders
-kubectl apply -f ${SCRIPT}/kubernetes-manifests/base/builders-config.yaml
 
 # orderers
 kubectl apply -f ${SCRIPT}/kubernetes-manifests/base/orderers/orderer0-orderers.yaml
@@ -324,8 +321,16 @@ peer channel fetch oldest '${BASE_CHANNEL_NAME}'.block \
     -c '${BASE_CHANNEL_NAME}' \
     --tls --cafile ${ORDERER_TLS_CA}
 
-peer channel join \
-    -b '${BASE_CHANNEL_NAME}'.block
+while sleep 10; do
+
+    peer channel join \
+        -b '${BASE_CHANNEL_NAME}'.block
+
+    if [ $? -eq 0 ]; then
+        break
+    fi
+
+done
 
 ###################### INTERNAL COMMAND ######################'
 

@@ -7,19 +7,10 @@ SCRIPT=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 
 ############################################################## 
-# PROCESSING VARIABLES 
+# TEARING DOWN - KUBERNETES NETWORK
 ##############################################################
 
-# TODO
-
-
-
-
-############################################################## 
-# TEARING DOWN NETWORK
-##############################################################
-
-printf "${C_BLUE_BOLD}\nteardown.sh:${C_BLUE}\n > TEARING DOWN NETWORK\n\n${C_RESET}"
+printf "${C_BLUE_BOLD}\nteardown.sh:${C_BLUE}\n > TEARING DOWN - KUBERNETES NETWORK\n\n${C_RESET}"
 
 # TLS CA
 kubectl delete -f ${SCRIPT}/kubernetes-manifests/base/tls-ca.yaml
@@ -44,9 +35,7 @@ for SERVICE_NAME in $(kubectl get service | awk '{print $1}' | grep 'peer'); do
     kubectl delete service ${SERVICE_NAME}
 done
 
-
-# external chaincode builders
-kubectl delete -f ${SCRIPT}/kubernetes-manifests/base/builders-config.yaml
+# external chaincodes
 for DEPLOYMENT_NAME in $(kubectl get deploy | awk '{print $1}' | grep 'chaincode'); do
     kubectl delete deploy ${DEPLOYMENT_NAME}
 done
@@ -60,5 +49,20 @@ kubectl delete -f ${SCRIPT}/kubernetes-manifests/base/ca-cli.yaml
 # cli
 kubectl delete -f ${SCRIPT}/kubernetes-manifests/base/cli.yaml
 
+# configuration files - ConfigMaps
+kubectl delete -f ${SCRIPT}/kubernetes-manifests/base/builders-config.yaml
+kubectl apply -f ${SCRIPT}/kubernetes-manifests/base/configtx.yaml
+
 # NFS Volumes
 kubectl delete -f ${SCRIPT}/kubernetes-manifests/external/nfs-volumes.yaml
+
+
+
+
+############################################################## 
+# TEARING DOWN - LOCAL DIRECTORIES
+##############################################################
+
+printf "${C_BLUE_BOLD}\nteardown.sh:${C_BLUE}\n > TEARING DOWN - LOCAL DIRECTORIES\n\n${C_RESET}"
+
+rm -rvf ${SCRIPT}/kubernetes-manifests/expand/*

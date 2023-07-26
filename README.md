@@ -38,7 +38,7 @@ Since we are going to test the network using a version of the *marbles* chaincod
 
 4. Build the *marbles* chaincode docker image inside the Kubernetes cluster:
 ```bash
-minikube image build -t marbles ./chaincodes/marbles/
+minikube image build -t chaincode-marbles ./chaincodes/marbles/
 ```
 
 ---
@@ -106,4 +106,4 @@ peer chaincode invoke --channelID base-channel --name marbles --isInit -o ordere
 
 --
 ## TODO:
-- Change `configtx.yaml` to a *ConfigMap* mounted onto the *cli* container.
+- Migrate what should be implemented as k8s *Secrets* to that format.

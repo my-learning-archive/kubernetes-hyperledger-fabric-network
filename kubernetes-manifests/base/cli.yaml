@@ -18,6 +18,13 @@ spec:
         - name: nfs
           persistentVolumeClaim:
             claimName: nfs
+        - name: configtx
+          configMap:
+            name: configtx
+            items:
+              - key: configtx
+                path: configtx
+                mode: 0544
       containers:
         - name: cli
           image: hyperledger/fabric-tools:2.4.6
@@ -78,6 +85,9 @@ spec:
             - name: nfs
               mountPath: /etc/hyperledger/configtx
               subPath: config/
+            - name: configtx
+              mountPath: /etc/hyperledger/configtx/configtx.yaml
+              subPath: configtx
           lifecycle:
             preStop:
               exec:
