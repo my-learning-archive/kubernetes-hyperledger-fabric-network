@@ -129,11 +129,24 @@ kubectl exec -it ${KUBERNETES_CA_CLI_POD_NAME} -- bash -c '
 ###################### INTERNAL COMMAND ######################
 
 export FABRIC_CA_CLIENT_HOME=$FABRIC_CA_HOME/client/'${ORG_CA_HOSTNAME}'
-fabric-ca-client enroll \
-    -u https://'${ORG_CA_ADMIN_USERNAME}':'${ORG_CA_ADMIN_PASSWORD}'@'${ORG_CA_HOSTNAME}':7054 \
-    --caname '${ORG_CA_HOSTNAME}' \
-    -M ${CRYPTO_HOME}/'${ORG_CRYPTO_MATERIAL_TARGET}'/msp \
-    --tls.certfiles ${CRYPTO_HOME}/'${ORG_CA_TLS_CERTIFICATE}'
+
+for i in {1..10}; do
+
+    fabric-ca-client enroll \
+        -u https://'${ORG_CA_ADMIN_USERNAME}':'${ORG_CA_ADMIN_PASSWORD}'@'${ORG_CA_HOSTNAME}':7054 \
+        --caname '${ORG_CA_HOSTNAME}' \
+        -M ${CRYPTO_HOME}/'${ORG_CRYPTO_MATERIAL_TARGET}'/msp \
+        --tls.certfiles ${CRYPTO_HOME}/'${ORG_CA_TLS_CERTIFICATE}'
+
+    if [ $? -eq 0 ]; then
+        break
+    fi
+    if [ $i -eq 10 ]; then
+        >&2 echo -e "'${C_RED_BOLD}'ERROR:'${C_RED}' '${ORG_CA_HOSTNAME}' is not available!'${C_RESET}'"
+        exit 1
+    fi
+    sleep 10
+done
 
 ###################### INTERNAL COMMAND ######################'
 
@@ -143,11 +156,24 @@ kubectl exec -it ${KUBERNETES_CA_CLI_POD_NAME} -- bash -c '
 ###################### INTERNAL COMMAND ######################
 
 export FABRIC_CA_CLIENT_HOME=$FABRIC_CA_HOME/client/'${TLS_CA_HOSTNAME}'
-fabric-ca-client enroll \
-    -u https://'${TLS_CA_ADMIN_USERNAME}':'${TLS_CA_ADMIN_PASSWORD}'@'${TLS_CA_HOSTNAME}':7054 \
-    --caname '${TLS_CA_HOSTNAME}' \
-    -M ${CRYPTO_HOME}/'${ORG_CRYPTO_MATERIAL_TARGET}'/tls \
-    --tls.certfiles ${CRYPTO_HOME}/'${TLS_CA_TLS_CERTIFICATE}'
+
+for i in {1..10}; do
+
+    fabric-ca-client enroll \
+        -u https://'${TLS_CA_ADMIN_USERNAME}':'${TLS_CA_ADMIN_PASSWORD}'@'${TLS_CA_HOSTNAME}':7054 \
+        --caname '${TLS_CA_HOSTNAME}' \
+        -M ${CRYPTO_HOME}/'${ORG_CRYPTO_MATERIAL_TARGET}'/tls \
+        --tls.certfiles ${CRYPTO_HOME}/'${TLS_CA_TLS_CERTIFICATE}'
+        
+    if [ $? -eq 0 ]; then
+        break
+    fi
+    if [ $i -eq 10 ]; then
+        >&2 echo -e "'${C_RED_BOLD}'ERROR:'${C_RED}' '${ORG_CA_HOSTNAME}' is not available!'${C_RESET}'"
+        exit 1
+    fi
+    sleep 10
+done
 
 ###################### INTERNAL COMMAND ######################'
 
@@ -282,6 +308,8 @@ fabric-ca-client enroll \
     -M ${CRYPTO_HOME}/'${USER_MSP_PATH}' \
     --tls.certfiles ${CRYPTO_HOME}/'${ORG_CA_TLS_CERTIFICATE}'
 cp ${CRYPTO_HOME}/'${ORG_CRYPTO_MATERIAL_TARGET}'/msp/config.yaml ${CRYPTO_HOME}/'${USER_MSP_PATH}'/config.yaml
+
+rm $(ls -t ${CRYPTO_HOME}/'${USER_MSP_PATH}'/keystore/* | tail -n +2) &> /dev/null
 
 ###################### INTERNAL COMMAND ######################'
 }
@@ -465,6 +493,8 @@ fabric-ca-client enroll \
     --tls.certfiles ${CRYPTO_HOME}/'${ORG_CA_TLS_CERTIFICATE}'
 
 cp ${CRYPTO_HOME}/'${ORG_CRYPTO_MATERIAL_TARGET}'/msp/config.yaml ${CRYPTO_HOME}/'${ENTITY_MSP_PATH}'/config.yaml
+
+rm $(ls -t ${CRYPTO_HOME}/'${ENTITY_MSP_PATH}'/keystore/* | tail -n +2) &> /dev/null
 
 ###################### INTERNAL COMMAND ######################'
 }

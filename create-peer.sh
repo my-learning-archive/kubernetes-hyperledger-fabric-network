@@ -30,8 +30,8 @@ while [ : ]; do
             echo -e "  --tls-ca-admin-password: The password of TLS CA admin, for the generation of TLS certificates."
             echo -e "\nOptional flags:"
             echo -e "(In the following flags, the '%' character is substituted by the cardinality of the created peer, discovered internally.)"
-            echo -e "  --peer-username: A custom username for the created peer entity to be registered in the organizational and TLS CAs - if not defined, it is set to default."
-            echo -e "  --peer-password: A custom password for the created peer entity to be registered in the organizational and TLS CAs - if not defined, it is set to default."
+            echo -e "  --peer-username: A custom username for the entity of the created peer to be registered in the organizational and TLS CAs - if not defined, it is set to default."
+            echo -e "  --peer-password: A custom password for the entity of the created peer to be registered in the organizational and TLS CAs - if not defined, it is set to default."
             echo -e "  --couchdb-username: A custom admin username for the CouchDB instance attached to the created peer - if not defined, it is set to default."
             echo -e "  --couchdb-password: A custom admin password for the CouchDB instance attached to the created peer - if not defined, it is set to default."
             exit 1
@@ -134,7 +134,7 @@ printf "${C_BLUE_BOLD}\ncreate-peer.sh:${C_GRAY_ITALIC} ${PEER_NAME}-${ORG_NAME}
 
 KUBERNETES_ORG_CA_HOSTNAME=ca-${ORG_NAME}
 
-. create-crypto.sh \
+source create-crypto.sh \
     --org-name ${ORG_NAME} \
     --org-ca-hostname ${KUBERNETES_ORG_CA_HOSTNAME} \
     --org-ca-admin-username ${ORG_CA_ADMIN_USERNAME} \
@@ -337,30 +337,30 @@ kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
 
 function assumeRole {
 
-    PEER_HOSTNAME=$1
+    PEER_NAME=$1
 
     export CORE_PEER_LOCALMSPID='${ORG_NAME^}'MSP
-    export CORE_PEER_ADDRESS=${PEER_HOSTNAME}:7051
+    export CORE_PEER_ADDRESS=${PEER_NAME}-'${ORG_NAME}':7051
     export CORE_PEER_MSPCONFIGPATH=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/users/'${ORG_NAME}'admin@'${ORG_NAME}'/msp
-    export CORE_PEER_TLS_CERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/${PEER_HOSTNAME}/tls/server.crt
-    export CORE_PEER_TLS_KEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/${PEER_HOSTNAME}/tls/server.key
-    export CORE_PEER_TLS_ROOTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/${PEER_HOSTNAME}/tls/ca.crt
-    export CORE_PEER_TLS_CLIENTROOTCAS_FILES=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/${PEER_HOSTNAME}/tls/server.crt
-    export CORE_PEER_TLS_CLIENTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/${PEER_HOSTNAME}/tls/server.key
-    export CORE_PEER_TLS_CLIENTKEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/${PEER_HOSTNAME}/tls/ca.crt
+    export CORE_PEER_TLS_CERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/${PEER_NAME}-'${ORG_NAME}'/tls/server.crt
+    export CORE_PEER_TLS_KEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/${PEER_NAME}-'${ORG_NAME}'/tls/server.key
+    export CORE_PEER_TLS_ROOTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/${PEER_NAME}-'${ORG_NAME}'/tls/ca.crt
+    export CORE_PEER_TLS_CLIENTROOTCAS_FILES=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/${PEER_NAME}-'${ORG_NAME}'/tls/server.crt
+    export CORE_PEER_TLS_CLIENTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/${PEER_NAME}-'${ORG_NAME}'/tls/server.key
+    export CORE_PEER_TLS_CLIENTKEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/${PEER_NAME}-'${ORG_NAME}'/tls/ca.crt
 }
 
-assumeRole peer0-'${ORG_NAME}'
+assumeRole peer0
 
 ORG_CHANNELS_LIST=$(peer channel list | sed 1d)
 
 for CHANNEL_NAME in ${ORG_CHANNELS_LIST}; do
 
-    assumeRole peer0-'${ORG_NAME}'
+    assumeRole peer0
 
     CHANNEL_CHAINCODES_LIST=$(peer lifecycle chaincode querycommitted --channelID ${CHANNEL_NAME} | tail -n +2 | tr -d "," | awk '"'"'{print $2}'"'"')
 
-    assumeRole '${PEER_NAME}'-'${ORG_NAME}'
+    assumeRole '${PEER_NAME}'
 
     echo -e "'${C_BLUE}'\nJoining peer to ${CHANNEL_NAME} application channel ...'${C_RESET}'"
 

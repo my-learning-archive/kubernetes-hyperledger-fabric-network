@@ -56,7 +56,7 @@ while [ : ]; do
             echo -e "Usage:"
             echo -e "  $0 [--<flags> <values>]"
             echo -e "\nRequired flags:"
-            echo -e "  --channel-name: The name to be created channel."
+            echo -e "  --channel-name: The name of the created channel."
             echo -e "  --orgs-list: The names, separated by commas, of Hyperledger Fabric organizations that will belong to the created channel."
             exit 1
             ;;
@@ -119,9 +119,9 @@ kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
 
 ORGS_LIST=$(echo '${ORGS_LIST}' | sed "s/,/ /g")
 
-mkdir -p ${CONFIGTX_HOME}/application-channels/'${CHANNEL_NAME}'
+mkdir -p ${CONFIGTX_HOME}/expand/applicationChannels/'${CHANNEL_NAME}'
 
-cat << EOF > ${CONFIGTX_HOME}/application-channels/'${CHANNEL_NAME}'/configtx.yaml
+cat << EOF > ${CONFIGTX_HOME}/expand/applicationChannels/'${CHANNEL_NAME}'/configtx.yaml
 Organizations:
     - &OrdererOrg
         Name: OrdererOrg
@@ -144,7 +144,7 @@ Organizations:
 EOF
 
 for ORG_NAME in ${ORGS_LIST}; do
-cat << EOF >> ${CONFIGTX_HOME}/application-channels/'${CHANNEL_NAME}'/configtx.yaml
+cat << EOF >> ${CONFIGTX_HOME}/expand/applicationChannels/'${CHANNEL_NAME}'/configtx.yaml
     - &${ORG_NAME^}
         Name: ${ORG_NAME^}MSP
         ID: ${ORG_NAME^}MSP
@@ -168,7 +168,7 @@ cat << EOF >> ${CONFIGTX_HOME}/application-channels/'${CHANNEL_NAME}'/configtx.y
 EOF
 done 
 
-cat << EOF >> ${CONFIGTX_HOME}/application-channels/'${CHANNEL_NAME}'/configtx.yaml
+cat << EOF >> ${CONFIGTX_HOME}/expand/applicationChannels/'${CHANNEL_NAME}'/configtx.yaml
 Capabilities:
     Channel: &ChannelCapabilities
         V2_0: true
@@ -263,12 +263,12 @@ Profiles:
 EOF
 
 for ORG_NAME in ${ORGS_LIST}; do
-cat << EOF >> ${CONFIGTX_HOME}/application-channels/'${CHANNEL_NAME}'/configtx.yaml
+cat << EOF >> ${CONFIGTX_HOME}/expand/applicationChannels/'${CHANNEL_NAME}'/configtx.yaml
                     - *${ORG_NAME^}
 EOF
 done
 
-cat << EOF >> ${CONFIGTX_HOME}/application-channels/'${CHANNEL_NAME}'/configtx.yaml
+cat << EOF >> ${CONFIGTX_HOME}/expand/applicationChannels/'${CHANNEL_NAME}'/configtx.yaml
     OrgChannel:
         Consortium: SampleConsortium
         <<: *ChannelDefaults
@@ -278,12 +278,12 @@ cat << EOF >> ${CONFIGTX_HOME}/application-channels/'${CHANNEL_NAME}'/configtx.y
 EOF
 
 for ORG_NAME in ${ORGS_LIST}; do
-cat << EOF >> ${CONFIGTX_HOME}/application-channels/'${CHANNEL_NAME}'/configtx.yaml
+cat << EOF >> ${CONFIGTX_HOME}/expand/applicationChannels/'${CHANNEL_NAME}'/configtx.yaml
                 - *${ORG_NAME^}
 EOF
 done
 
-cat << EOF >> ${CONFIGTX_HOME}/application-channels/'${CHANNEL_NAME}'/configtx.yaml
+cat << EOF >> ${CONFIGTX_HOME}/expand/applicationChannels/'${CHANNEL_NAME}'/configtx.yaml
             Capabilities:
                 <<: *ApplicationCapabilities
 EOF
@@ -303,10 +303,10 @@ kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
 ###################### INTERNAL COMMAND ######################
 
 configtxgen \
-    -configPath ${CONFIGTX_HOME}/application-channels/'${CHANNEL_NAME}'/ \
+    -configPath ${CONFIGTX_HOME}/expand/applicationChannels/'${CHANNEL_NAME}'/ \
     -profile OrgChannel \
     -channelID '${CHANNEL_NAME}' \
-    -outputCreateChannelTx ${CONFIGTX_HOME}/application-channels/'${CHANNEL_NAME}'/'${CHANNEL_NAME}'.tx
+    -outputCreateChannelTx ${CONFIGTX_HOME}/expand/applicationChannels/'${CHANNEL_NAME}'/'${CHANNEL_NAME}'.tx
 
 ###################### INTERNAL COMMAND ######################'
 
@@ -339,7 +339,7 @@ export CORE_PEER_TLS_CLIENTKEY_FILE='${CORE_PEER_TLS_CLIENTKEY_FILE}'
 peer channel create \
     -o ${ORDERER_ENDPOINT} \
     -c '${CHANNEL_NAME}' \
-    -f ${CONFIGTX_HOME}/application-channels/'${CHANNEL_NAME}'/'${CHANNEL_NAME}'.tx \
+    -f ${CONFIGTX_HOME}/expand/applicationChannels/'${CHANNEL_NAME}'/'${CHANNEL_NAME}'.tx \
     --tls --cafile ${ORDERER_TLS_CA}
 
 ###################### INTERNAL COMMAND ######################'

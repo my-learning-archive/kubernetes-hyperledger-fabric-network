@@ -114,6 +114,18 @@ peer chaincode invoke --channelID base-channel --name marbles --isInit -o ordere
  --tls-ca-admin-password tls-adminpw
 ```
 
+8. Create a new org:
+```bash
+./create-org.sh \
+ --org-name org3 \
+ --org-ca-admin-username admin \
+ --org-ca-admin-password adminpw \
+ --tls-ca-admin-username tls-admin \
+ --tls-ca-admin-password tls-adminpw \
+ --channel-name new-channel \
+ --channel-org-name org1
+```
+
 --- 
 ## Quick setup:
 ```bash

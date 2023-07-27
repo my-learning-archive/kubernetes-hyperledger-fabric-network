@@ -42,7 +42,7 @@ spec:
           args:
             - sh
             - -c
-            - fabric-ca-server start -b admin:adminpw -d --csr.hosts 'ca-org2'
+            - fabric-ca-server start -b admin:adminpw -d --csr.hosts 'ca-org2' --csr.cn 'ca-org2'
           env:
             - name: FABRIC_CA_HOME
               value: /etc/hyperledger/fabric-ca-server

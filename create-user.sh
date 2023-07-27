@@ -133,7 +133,7 @@ KUBERNETES_ORG_CA_HOSTNAME=ca-${ORG_NAME}
 
 printf "${C_BLUE_BOLD}\ncreate-user.sh:${C_GRAY_ITALIC} ${USER_USERNAME}@${ORG_NAME} ${C_BLUE}\n > REGISTERING USER AND GENERATING CRYPTO-MATERIALS\n\n${C_RESET}"
 
-. create-crypto.sh \
+source create-crypto.sh \
     --org-name ${ORG_NAME} \
     --org-ca-hostname ${KUBERNETES_ORG_CA_HOSTNAME} \
     --org-ca-admin-username ${ORG_CA_ADMIN_USERNAME} \

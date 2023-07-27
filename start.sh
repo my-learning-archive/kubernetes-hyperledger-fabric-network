@@ -78,7 +78,7 @@ for ORG_NAME in "org1" "org2"; do
     ORG_CA_ADMIN_USERNAME=admin
     ORG_CA_ADMIN_PASSWORD=adminpw
 
-    . create-crypto.sh \
+    source create-crypto.sh \
         --org-name ${ORG_NAME} \
         --org-ca-hostname ${KUBERNETES_ORG_CA_HOSTNAME} \
         --org-ca-admin-username ${ORG_CA_ADMIN_USERNAME} \
@@ -124,7 +124,7 @@ KUBERNETES_ORG_CA_HOSTNAME=ca-orderers
 ORG_CA_ADMIN_USERNAME=admin
 ORG_CA_ADMIN_PASSWORD=adminpw
 
-. create-crypto.sh \
+source create-crypto.sh \
     --org-name orderers \
     --org-ca-hostname ${KUBERNETES_ORG_CA_HOSTNAME} \
     --org-ca-admin-username ${ORG_CA_ADMIN_USERNAME} \

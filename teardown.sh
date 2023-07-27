@@ -15,12 +15,13 @@ printf "${C_BLUE_BOLD}\nteardown.sh:${C_BLUE}\n > TEARING DOWN - KUBERNETES NETW
 # TLS CA
 kubectl delete -f ${SCRIPT}/kubernetes-manifests/base/tls-ca.yaml
 
-# orderers CA
-kubectl delete -f ${SCRIPT}/kubernetes-manifests/base/orderers/ca-orderers.yaml
-
-# org1 and org2 CA
-kubectl delete -f ${SCRIPT}/kubernetes-manifests/base/org1/ca-org1.yaml
-kubectl delete -f ${SCRIPT}/kubernetes-manifests/base/org2/ca-org2.yaml
+# organizational CAs
+for DEPLOYMENT_NAME in $(kubectl get deploy | awk '{print $1}' | grep '^ca' | grep -v 'cli'); do
+    kubectl delete deploy ${DEPLOYMENT_NAME}
+done
+for SERVICE_NAME in $(kubectl get service | awk '{print $1}' | grep '^ca' | grep -v 'cli'); do
+    kubectl delete service ${SERVICE_NAME}
+done
 
 # orderers
 kubectl delete -f ${SCRIPT}/kubernetes-manifests/base/orderers/orderer0-orderers.yaml
