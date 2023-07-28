@@ -81,6 +81,7 @@ We will start by creating a basic HLF network with one cluster-wide TLS CA; thre
 4. Deploy a chaincode (the *marbles* chaincode, in this case):
 ```bash
 ./deploy-chaincode.sh \
+ --chaincode-image chaincode-marbles \
  --chaincode-label marbles \
  --chaincode-version 1 \
  --channel-name base-channel \
@@ -134,5 +135,7 @@ peer chaincode invoke --channelID base-channel --name marbles --isInit -o ordere
 
 --
 ## TODO:
+- ~~Collection profiles are still unsupported in deploy-chaincode.sh~~ Chaincode deployment with collections-config files is not cloud native, because said collection-config files need to exist locally... Find a way to fix this.
 - Migrate what should be implemented as k8s *Secrets* to that format.
-- Create script to join existing orgs to existing channels.
+- ~~Right now, because of the service and directory conventions, there can't be two chaincodes with different names in the same channel, fix this...~~
+- ./create-org.sh - new orgs joining channel stilll can't use chaincode (... has not yet been approved by this org)

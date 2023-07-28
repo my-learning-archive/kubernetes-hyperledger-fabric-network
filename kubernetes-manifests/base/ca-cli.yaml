@@ -47,4 +47,4 @@ spec:
           lifecycle:
             preStop:
               exec:
-                command: ["/bin/sh","-c","rm -rf /etc/hyperledger/fabric-ca-server-config/* /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/*"]
+                command: ["/bin/sh","-c","rm -rf /etc/hyperledger/fabric-ca-server-config/* ${CRYPTO_HOME}/*"]

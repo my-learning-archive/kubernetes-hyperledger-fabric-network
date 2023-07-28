@@ -52,7 +52,7 @@ kubectl delete -f ${SCRIPT}/kubernetes-manifests/base/cli.yaml
 
 # configuration files - ConfigMaps
 kubectl delete -f ${SCRIPT}/kubernetes-manifests/base/builders-config.yaml
-kubectl apply -f ${SCRIPT}/kubernetes-manifests/base/configtx.yaml
+kubectl delete -f ${SCRIPT}/kubernetes-manifests/base/configtx.yaml
 
 # NFS Volumes
 kubectl delete -f ${SCRIPT}/kubernetes-manifests/external/nfs-volumes.yaml

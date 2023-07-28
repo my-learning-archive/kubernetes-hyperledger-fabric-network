@@ -258,9 +258,9 @@ printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n >
 kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
 ###################### INTERNAL COMMAND ######################
 
-mkdir -p ${CONFIGTX_HOME}/expand/peerOrganizations/'${ORG_NAME}'
+mkdir -p ${CONFIGTX_HOME}/peerOrganizations/'${ORG_NAME}'
 
-cat << EOF > ${CONFIGTX_HOME}/expand/peerOrganizations/'${ORG_NAME}'/configtx.yaml
+cat << EOF > ${CONFIGTX_HOME}/peerOrganizations/'${ORG_NAME}'/configtx.yaml
 Organizations:
     - &'${ORG_NAME^}'
       Name: '${ORG_NAME^}'MSP
@@ -285,8 +285,8 @@ Organizations:
 EOF
 
 configtxgen \
-	-configPath ${CONFIGTX_HOME}/expand/peerOrganizations/'${ORG_NAME}'/ \
-	-printOrg '${ORG_NAME^}'MSP > ${CONFIGTX_HOME}/expand/peerOrganizations/'${ORG_NAME}'/'${ORG_NAME}'-definition.json
+	-configPath ${CONFIGTX_HOME}/peerOrganizations/'${ORG_NAME}'/ \
+	-printOrg '${ORG_NAME^}'MSP > ${CONFIGTX_HOME}/peerOrganizations/'${ORG_NAME}'/'${ORG_NAME}'-definition.json
 
 ###################### INTERNAL COMMAND ######################'
 
@@ -294,10 +294,10 @@ configtxgen \
 
 
 ############################################################## 
-# STARTING PEER SERVICE
+# STARTING ANCHOR PEER SERVICE
 ##############################################################
 
-printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > STARTING PEER SERVICE\n\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > STARTING ANCHOR PEER SERVICE\n\n${C_RESET}"
 
 cat << EOF > ${SCRIPT}/kubernetes-manifests/expand/${ORG_NAME}/peer0-${ORG_NAME}.yaml
 kind: Service
@@ -480,7 +480,7 @@ export CORE_PEER_TLS_CLIENTROOTCAS_FILES=${CRYPTO_HOME}/ordererOrganizations/ord
 export CORE_PEER_TLS_CLIENTCERT_FILE=${CRYPTO_HOME}/ordererOrganizations/orderers/orderers/orderer0-orderers/tls/server.key
 export CORE_PEER_TLS_CLIENTKEY_FILE=${CRYPTO_HOME}/ordererOrganizations/orderers/orderers/orderer0-orderers/tls/ca.crt
 
-cd ${CONFIGTX_HOME}/expand/peerOrganizations/'${ORG_NAME}'/
+cd ${CONFIGTX_HOME}/peerOrganizations/'${ORG_NAME}'/
 
 BLOCK_FETCHED_CONFIG_PB=blockFetchedConfig-${SYS_CHANNEL_NAME}-'${ORG_NAME}'.pb
 CONFIG_BLOCK_JSON=configBlock-${SYS_CHANNEL_NAME}-'${ORG_NAME}'.json
@@ -568,7 +568,7 @@ kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
 ###################### INTERNAL COMMAND ######################
 
 discover \
-	--configFile ${CONFIGTX_HOME}/discovery-conf-'${ORG_NAME}'.yaml \
+	--configFile ${CONFIGTX_HOME}/peerOrganizations/'${ORG_NAME}'/discovery-conf-'${ORG_NAME}'.yaml \
 	--tlsCert ${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/peer0-'${ORG_NAME}'/tls/server.crt \
 	--tlsKey ${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/peer0-'${ORG_NAME}'/tls/server.key \
 	--peerTLSCA ${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/peer0-'${ORG_NAME}'/tls/ca.crt \

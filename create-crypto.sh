@@ -142,7 +142,7 @@ for i in {1..10}; do
         break
     fi
     if [ $i -eq 10 ]; then
-        >&2 echo -e "'${C_RED_BOLD}'ERROR:'${C_RED}' '${ORG_CA_HOSTNAME}' is not available!'${C_RESET}'"
+        >&2 echo -e "'${C_RED_BOLD}'ERROR:'${C_RED}' '${ORG_CA_HOSTNAME}' could not be reached!'${C_RESET}'"
         exit 1
     fi
     sleep 10
@@ -169,7 +169,7 @@ for i in {1..10}; do
         break
     fi
     if [ $i -eq 10 ]; then
-        >&2 echo -e "'${C_RED_BOLD}'ERROR:'${C_RED}' '${ORG_CA_HOSTNAME}' is not available!'${C_RESET}'"
+        >&2 echo -e "'${C_RED_BOLD}'ERROR:'${C_RED}' '${ORG_CA_HOSTNAME}' could not be reached!'${C_RESET}'"
         exit 1
     fi
     sleep 10
@@ -307,9 +307,9 @@ fabric-ca-client enroll \
     --caname '${ORG_CA_HOSTNAME}' \
     -M ${CRYPTO_HOME}/'${USER_MSP_PATH}' \
     --tls.certfiles ${CRYPTO_HOME}/'${ORG_CA_TLS_CERTIFICATE}'
-cp ${CRYPTO_HOME}/'${ORG_CRYPTO_MATERIAL_TARGET}'/msp/config.yaml ${CRYPTO_HOME}/'${USER_MSP_PATH}'/config.yaml
 
 rm $(ls -t ${CRYPTO_HOME}/'${USER_MSP_PATH}'/keystore/* | tail -n +2) &> /dev/null
+cp ${CRYPTO_HOME}/'${ORG_CRYPTO_MATERIAL_TARGET}'/msp/config.yaml ${CRYPTO_HOME}/'${USER_MSP_PATH}'/config.yaml
 
 ###################### INTERNAL COMMAND ######################'
 }
@@ -408,7 +408,6 @@ fabric-ca-client enroll \
     --tls.certfiles ${CRYPTO_HOME}/'${TLS_CA_TLS_CERTIFICATE}'
 
 rm $(ls -t ${CRYPTO_HOME}/'${USER_TLS_PATH}'/keystore/* | tail -n +2) &> /dev/null
-
 cp ${CRYPTO_HOME}/'${USER_TLS_PATH}'/tlscacerts/* ${CRYPTO_HOME}/'${USER_TLS_PATH}'/ca.crt
 cp ${CRYPTO_HOME}/'${USER_TLS_PATH}'/signcerts/* ${CRYPTO_HOME}/'${USER_TLS_PATH}'/client.crt
 cp ${CRYPTO_HOME}/'${USER_TLS_PATH}'/keystore/* ${CRYPTO_HOME}/'${USER_TLS_PATH}'/client.key
@@ -492,9 +491,8 @@ fabric-ca-client enroll \
     --csr.hosts '${ENTITY_NAME}'-'${ORG_NAME}' \
     --tls.certfiles ${CRYPTO_HOME}/'${ORG_CA_TLS_CERTIFICATE}'
 
-cp ${CRYPTO_HOME}/'${ORG_CRYPTO_MATERIAL_TARGET}'/msp/config.yaml ${CRYPTO_HOME}/'${ENTITY_MSP_PATH}'/config.yaml
-
 rm $(ls -t ${CRYPTO_HOME}/'${ENTITY_MSP_PATH}'/keystore/* | tail -n +2) &> /dev/null
+cp ${CRYPTO_HOME}/'${ORG_CRYPTO_MATERIAL_TARGET}'/msp/config.yaml ${CRYPTO_HOME}/'${ENTITY_MSP_PATH}'/config.yaml
 
 ###################### INTERNAL COMMAND ######################'
 }
@@ -578,7 +576,6 @@ fabric-ca-client enroll \
     --tls.certfiles ${CRYPTO_HOME}/'${TLS_CA_TLS_CERTIFICATE}'
 
 rm $(ls -t ${CRYPTO_HOME}/'${ENTITY_TLS_PATH}'/keystore/* | tail -n +2) &> /dev/null
-
 cp ${CRYPTO_HOME}/'${ENTITY_TLS_PATH}'/tlscacerts/* ${CRYPTO_HOME}/'${ENTITY_TLS_PATH}'/ca.crt
 cp ${CRYPTO_HOME}/'${ENTITY_TLS_PATH}'/signcerts/* ${CRYPTO_HOME}/'${ENTITY_TLS_PATH}'/server.crt
 cp ${CRYPTO_HOME}/'${ENTITY_TLS_PATH}'/keystore/* ${CRYPTO_HOME}/'${ENTITY_TLS_PATH}'/server.key

@@ -78,6 +78,25 @@ KUBERNETES_CLI_HOSTNAME=${ENV_KUBERNETES_CLI_HOSTNAME}
 
 KUBERNETES_CLI_POD_NAME=$(kubectl get pods | grep ^${KUBERNETES_CLI_HOSTNAME}-* | awk '{print $1}')
 
+PEERS_LIST=$(kubectl get services | awk '{print $1}' | grep ^peer | grep ${ORG_NAME} | sort)
+
+CHANNEL_CHAINCODES_LIST=$(kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
+###################### INTERNAL COMMAND ######################
+
+export CORE_PEER_LOCALMSPID='${CHANNEL_ORG_NAME^}'MSP
+export CORE_PEER_ADDRESS=peer0-'${CHANNEL_ORG_NAME}':7051
+export CORE_PEER_MSPCONFIGPATH=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/users/'${CHANNEL_ORG_NAME}'admin@'${CHANNEL_ORG_NAME}'/msp
+export CORE_PEER_TLS_CERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/server.crt
+export CORE_PEER_TLS_KEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/server.key
+export CORE_PEER_TLS_ROOTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/ca.crt
+export CORE_PEER_TLS_CLIENTROOTCAS_FILES=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/server.crt
+export CORE_PEER_TLS_CLIENTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/server.key
+export CORE_PEER_TLS_CLIENTKEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/ca.crt
+
+peer lifecycle chaincode querycommitted --channelID '${CHANNEL_NAME}' | tail -n +2 | tr -d "," | awk '"'"'{print $2}'"'"'
+
+###################### INTERNAL COMMAND ######################' | sed 's/\r$//' | sort)
+
 
 
 
@@ -85,7 +104,7 @@ KUBERNETES_CLI_POD_NAME=$(kubectl get pods | grep ^${KUBERNETES_CLI_HOSTNAME}-* 
 # JOINING ORGANIZATION TO APPLICATION CHANNEL
 ##############################################################
 
-printf "${C_BLUE_BOLD}\njoin-org-to-channel.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > JOINING ORGANIZATION TO APPLICATION CHANNEL\n\n${C_RESET}"
+printf "${C_BLUE_BOLD}\njoin-org-to-channel.sh:${C_BLUE}\n > JOINING ORGANIZATION TO APPLICATION CHANNEL\n\n${C_RESET}"
 
 kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
 ###################### INTERNAL COMMAND ######################
@@ -100,15 +119,15 @@ export CORE_PEER_TLS_CLIENTROOTCAS_FILES=${CRYPTO_HOME}/peerOrganizations/'${CHA
 export CORE_PEER_TLS_CLIENTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/server.key
 export CORE_PEER_TLS_CLIENTKEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/ca.crt
 
-mkdir -p ${CONFIGTX_HOME}/expand/peerOrganizations/'${ORG_NAME}'/
+mkdir -p ${CONFIGTX_HOME}/peerOrganizations/'${ORG_NAME}'/
 
 [[ '${ORG_NAME}' == "org1" || '${ORG_NAME}' == "org2" ]] && {
     configtxgen \
         -configPath ${CONFIGTX_HOME}/ \
-        -printOrg '${ORG_NAME^}'MSP > ${CONFIGTX_HOME}/expand/peerOrganizations/'${ORG_NAME}'/'${ORG_NAME}'-definition.json
+        -printOrg '${ORG_NAME^}'MSP > ${CONFIGTX_HOME}/peerOrganizations/'${ORG_NAME}'/'${ORG_NAME}'-definition.json
 }
 
-cd ${CONFIGTX_HOME}/expand/peerOrganizations/'${ORG_NAME}'/
+cd ${CONFIGTX_HOME}/peerOrganizations/'${ORG_NAME}'/
 
 BLOCK_FETCHED_CONFIG_PB=blockFetchedConfig-'${CHANNEL_NAME}'-'${ORG_NAME}'.pb
 CONFIG_BLOCK_JSON=configBlock-'${CHANNEL_NAME}'-'${ORG_NAME}'.json
@@ -158,11 +177,9 @@ configtxlator proto_encode \
 	--type common.Envelope \
 	--output ${SUBMIT_READY_PB}
 
-CHANNEL_ORGS_LIST=$(discover --configFile ${CONFIGTX_HOME}/discovery-conf-'${CHANNEL_ORG_NAME}'.yaml config --channel '${CHANNEL_NAME}' --server peer0-'${CHANNEL_ORG_NAME}':7051 | grep name | grep -v "Orderer" | awk '"'"'{print $2}'"'"' | tr -d '"'"'",MSP'"'"' | tr '"'"'[:upper:]'"'"' '"'"'[:lower:]'"'"' | sort | uniq)
+CHANNEL_ORGS_LIST=$(discover --configFile ${CONFIGTX_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/discovery-conf-'${CHANNEL_ORG_NAME}'.yaml config --channel '${CHANNEL_NAME}' --server peer0-'${CHANNEL_ORG_NAME}':7051 | grep name | grep -v "Orderer" | awk '"'"'{print $2}'"'"' | tr -d '"'"'",MSP'"'"' | tr '"'"'[:upper:]'"'"' '"'"'[:lower:]'"'"' | sort | uniq | sed "s/\r$//")
 
 for ORG_NAME in ${CHANNEL_ORGS_LIST}; do
-
-    ORG_NAME=$(echo ${ORG_NAME} | sed "s/\r$//")
 
     [[ ${ORG_NAME} != '${ORG_NAME}' ]] && {
 
@@ -193,60 +210,205 @@ peer channel update \
 
 
 ############################################################## 
-# JOINING ANCHOR PEER TO APPLICATION CHANNEL
+# JOINING PEERS TO APPLICATION CHANNEL
 ##############################################################
 
-printf "${C_BLUE_BOLD}\njoin-org-to-channel.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > JOINING PEERS TO APPLICATION CHANNEL\n\n${C_RESET}"
+printf "${C_BLUE_BOLD}\njoin-org-to-channel.sh:${C_BLUE}\n > JOINING PEERS TO APPLICATION CHANNEL\n\n${C_RESET}"
 
-PEERS_LIST=$(kubectl get services | awk '{print $1}' | grep ^peer | grep ${ORG_NAME} | sort)
+for PEER_HOSTNAME in ${PEERS_LIST}; do
 
-kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
+    kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
 ###################### INTERNAL COMMAND ######################
 
-export CORE_PEER_LOCALMSPID='${CHANNEL_ORG_NAME^}'MSP
-export CORE_PEER_ADDRESS=peer0-'${CHANNEL_ORG_NAME}':7051
-export CORE_PEER_MSPCONFIGPATH=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/users/'${CHANNEL_ORG_NAME}'admin@'${CHANNEL_ORG_NAME}'/msp
-export CORE_PEER_TLS_CERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/server.crt
-export CORE_PEER_TLS_KEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/server.key
-export CORE_PEER_TLS_ROOTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/ca.crt
-export CORE_PEER_TLS_CLIENTROOTCAS_FILES=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/server.crt
-export CORE_PEER_TLS_CLIENTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/server.key
-export CORE_PEER_TLS_CLIENTKEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/ca.crt
+export CORE_PEER_LOCALMSPID='${ORG_NAME^}'MSP
+export CORE_PEER_ADDRESS='${PEER_HOSTNAME}':7051
+export CORE_PEER_MSPCONFIGPATH=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/users/'${ORG_NAME}'admin@'${ORG_NAME}'/msp
+export CORE_PEER_TLS_CERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/server.crt
+export CORE_PEER_TLS_KEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/server.key
+export CORE_PEER_TLS_ROOTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/ca.crt
+export CORE_PEER_TLS_CLIENTROOTCAS_FILES=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/server.crt
+export CORE_PEER_TLS_CLIENTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/server.key
+export CORE_PEER_TLS_CLIENTKEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/ca.crt
 
-CHANNEL_CHAINCODES_LIST=$(peer lifecycle chaincode querycommitted --channelID '${CHANNEL_NAME}' | tail -n +2 | tr -d "," | awk '"'"'{print $2}'"'"')
+echo -e "'${C_BLUE}'\nJoining '${PEER_HOSTNAME}' peer to application channel ...'${C_RESET}'"
 
-for PEER_HOSTNAME in '${PEERS_LIST}'; do
+peer channel fetch oldest ${CONFIGTX_HOME}/applicationChannels/'${CHANNEL_NAME}'/'${CHANNEL_NAME}'.block \
+    -o ${ORDERER_ENDPOINT} \
+    -c '${CHANNEL_NAME}' \
+    --tls --cafile ${ORDERER_TLS_CA}
+    
+for i in {1..10}; do
 
-    export CORE_PEER_LOCALMSPID='${ORG_NAME^}'MSP
-    export CORE_PEER_ADDRESS=${PEER_HOSTNAME}:7051
-    export CORE_PEER_MSPCONFIGPATH=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/users/'${ORG_NAME}'admin@'${ORG_NAME}'/msp
-    export CORE_PEER_TLS_CERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/${PEER_HOSTNAME}/tls/server.crt
-    export CORE_PEER_TLS_KEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/${PEER_HOSTNAME}/tls/server.key
-    export CORE_PEER_TLS_ROOTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/${PEER_HOSTNAME}/tls/ca.crt
-    export CORE_PEER_TLS_CLIENTROOTCAS_FILES=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/${PEER_HOSTNAME}/tls/server.crt
-    export CORE_PEER_TLS_CLIENTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/${PEER_HOSTNAME}/tls/server.key
-    export CORE_PEER_TLS_CLIENTKEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/${PEER_HOSTNAME}/tls/ca.crt
-
-    echo -e "'${C_BLUE}'\nJoining ${PEER_HOSTNAME} peer to application channel ...'${C_RESET}'"
-
-    peer channel fetch oldest '${CHANNEL_NAME}'.block \
-        -o ${ORDERER_ENDPOINT} \
-        -c '${CHANNEL_NAME}' \
-        --tls --cafile ${ORDERER_TLS_CA}
+    peer channel join \
+        -b ${CONFIGTX_HOME}/applicationChannels/'${CHANNEL_NAME}'/'${CHANNEL_NAME}'.block
         
-    while sleep 10; do
-        peer channel join \
-            -b '${CHANNEL_NAME}'.block
-        if [ $? -eq 0 ]; then
-            break
-        fi
-    done
-
-    for CHAINCODE_LABEL in ${CHANNEL_CHAINCODES_LIST}; do
-        echo -e "'${C_BLUE}'\nInstalling ${CHAINCODE_LABEL} chaincode in ${PEER_HOSTNAME} peer ...'${C_RESET}'"
-        peer lifecycle chaincode install ${CHAINCODE_HOME}/${CHAINCODE_LABEL}/${CHAINCODE_LABEL}-'${ORG_NAME}'.tgz
-    done
-
+    if [ $? -eq 0 ]; then
+        break
+    fi
+    if [ $i -eq 10 ]; then
+        >&2 echo -e "'${C_RED_BOLD}'ERROR:'${C_RED}' '${PEER_HOSTNAME}' could not join peer to application channel!'${C_RESET}'"
+        exit 1
+    fi
+    sleep 10
 done
 
 ###################### INTERNAL COMMAND ######################'
+
+done
+
+
+
+
+############################################################## 
+# PACKAGING CHAINCODES
+##############################################################
+
+printf "${C_BLUE_BOLD}\njoin-org-to-channel.sh:${C_BLUE}\n > PACKAGING CHAINCODES\n\n${C_RESET}"
+
+for CHAINCODE_LABEL in ${CHANNEL_CHAINCODES_LIST}; do
+
+    kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
+###################### INTERNAL COMMAND ######################
+
+cd ${CONFIGTX_HOME}/applicationChannels/'${CHANNEL_NAME}'/chaincodes/'${CHAINCODE_LABEL}'/
+
+cat << EOF > connection.json
+{
+    "address": "chaincode-'${CHANNEL_NAME}'-'${CHAINCODE_LABEL}'-'${ORG_NAME}':7052",
+    "dial_timeout": "10s",
+    "tls_required": false,
+    "client_auth_required": false,
+    "client_key": "-----BEGIN EC PRIVATE KEY----- ... -----END EC PRIVATE KEY-----",
+    "client_cert": "-----BEGIN CERTIFICATE----- ... -----END CERTIFICATE-----",
+    "root_cert": "-----BEGIN CERTIFICATE---- ... -----END CERTIFICATE-----"
+}
+EOF
+
+cat << EOF > metadata.json
+{"path":"","type":"external","label":"'${CHAINCODE_LABEL}'"}
+EOF
+
+tar cfz code.tar.gz connection.json
+tar cfz '${CHAINCODE_LABEL}'-'${ORG_NAME}'.tgz code.tar.gz metadata.json
+
+rm -rvf connection.json code.tar.gz metadata.json &> /dev/null
+ls ${CONFIGTX_HOME}/applicationChannels/'${CHANNEL_NAME}'/chaincodes/'${CHAINCODE_LABEL}'/'${CHAINCODE_LABEL}'-'${ORG_NAME}'.tgz
+
+###################### INTERNAL COMMAND ######################'
+
+done
+
+
+
+
+############################################################## 
+# INSTALLING CHAINCODES ON PEERS
+##############################################################
+
+printf "${C_BLUE_BOLD}\njoin-org-to-channel.sh:${C_BLUE}\n > INSTALLING CHAINCODES ON PEERS\n\n${C_RESET}"
+
+for PEER_HOSTNAME in ${PEERS_LIST}; do
+
+    for CHAINCODE_LABEL in ${CHANNEL_CHAINCODES_LIST}; do
+
+    kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
+###################### INTERNAL COMMAND ######################
+
+export CORE_PEER_LOCALMSPID='${ORG_NAME^}'MSP
+export CORE_PEER_ADDRESS='${PEER_HOSTNAME}':7051
+export CORE_PEER_MSPCONFIGPATH=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/users/'${ORG_NAME}'admin@'${ORG_NAME}'/msp
+export CORE_PEER_TLS_CERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/server.crt
+export CORE_PEER_TLS_KEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/server.key
+export CORE_PEER_TLS_ROOTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/ca.crt
+export CORE_PEER_TLS_CLIENTROOTCAS_FILES=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/server.crt
+export CORE_PEER_TLS_CLIENTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/server.key
+export CORE_PEER_TLS_CLIENTKEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/ca.crt
+
+echo -e "'${C_BLUE}'\nInstalling '${CHAINCODE_LABEL}' chaincode in '${PEER_HOSTNAME}' peer ...'${C_RESET}'"
+
+peer lifecycle chaincode install ${CONFIGTX_HOME}/applicationChannels/'${CHANNEL_NAME}'/chaincodes/'${CHAINCODE_LABEL}'/'${CHAINCODE_LABEL}'-'${ORG_NAME}'.tgz
+
+###################### INTERNAL COMMAND ######################'
+
+    done
+done
+
+
+
+
+############################################################## 
+# STARTING EXTERNAL BUILDER SERVICES
+##############################################################
+
+printf "${C_BLUE_BOLD}\njoin-org-to-channel.sh:${C_BLUE}\n > STARTING EXTERNAL BUILDER SERVICES\n\n${C_RESET}"
+
+for CHAINCODE_LABEL in ${CHANNEL_CHAINCODES_LIST}; do
+
+    CHAINCODE_IMAGE=$(kubectl get deploy chaincode-${CHANNEL_NAME}-${CHAINCODE_LABEL}-${CHANNEL_ORG_NAME} -o wide | awk '{print $7}' | tail -n +2)
+
+    PACKAGE_ID=$(kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c 'peer lifecycle chaincode calculatepackageid ${CONFIGTX_HOME}/applicationChannels/'${CHANNEL_NAME}'/chaincodes/'${CHAINCODE_LABEL}'/'${CHAINCODE_LABEL}'-'${ORG_NAME}'.tgz')
+
+    mkdir -p ${SCRIPT}/kubernetes-manifests/expand/${ORG_NAME}/
+    cat << EOF > ${SCRIPT}/kubernetes-manifests/expand/${ORG_NAME}/${CHANNEL_NAME}-${CHAINCODE_LABEL}-${ORG_NAME}.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: chaincode-${CHANNEL_NAME}-${CHAINCODE_LABEL}-${ORG_NAME}
+  labels:
+    app: chaincode-${CHANNEL_NAME}-${CHAINCODE_LABEL}-${ORG_NAME}
+spec:
+  ports:
+    - name: grpc
+      port: 7052
+      targetPort: 7052
+  selector:
+    app: chaincode-${CHANNEL_NAME}-${CHAINCODE_LABEL}-${ORG_NAME}
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chaincode-${CHANNEL_NAME}-${CHAINCODE_LABEL}-${ORG_NAME}
+  labels:
+    app: chaincode-${CHANNEL_NAME}-${CHAINCODE_LABEL}-${ORG_NAME}
+spec:
+  selector:
+    matchLabels:
+      app: chaincode-${CHANNEL_NAME}-${CHAINCODE_LABEL}-${ORG_NAME}
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: chaincode-${CHANNEL_NAME}-${CHAINCODE_LABEL}-${ORG_NAME}
+    spec:
+      containers:
+        - image: ${CHAINCODE_IMAGE}
+          name: chaincode-${CHANNEL_NAME}-${CHAINCODE_LABEL}-${ORG_NAME}
+          imagePullPolicy: Never
+          env:
+            - name: CHAINCODE_CCID
+              value: "${PACKAGE_ID}"
+            - name: CHAINCODE_ADDRESS
+              value: "0.0.0.0:7052"
+          ports:
+            - containerPort: 7052
+EOF
+
+kubectl apply -f ${SCRIPT}/kubernetes-manifests/expand/${ORG_NAME}/${CHANNEL_NAME}-${CHAINCODE_LABEL}-${ORG_NAME}.yaml
+
+done
+
+# wait for all containers to start
+while kubectl get pods | grep 'ContainerCreating'; do
+    sleep 10
+done
+sleep 10
+
+# are all services are running?
+kubectl get pods | awk '{print $3}' | tail -n +2 | awk '!seen[$0]++ && NR>1{exit 1}'
+[[ ! $? -eq 0 ]] && {
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} One or more containers did not start. Exiting. ${C_RESET}"
+    exit 1
+}

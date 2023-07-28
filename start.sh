@@ -199,11 +199,13 @@ printf "${C_BLUE_BOLD}\nstart.sh:${C_BLUE}\n > GENERATING APPLICATION CHANNEL CR
 kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
 ###################### INTERNAL COMMAND ######################
 
+mkdir -p ${CONFIGTX_HOME}/applicationChannels/'${BASE_CHANNEL_NAME}'/
+
 configtxgen \
     -configPath ${CONFIGTX_HOME} \
     -profile TwoOrgChannel \
     -channelID '${BASE_CHANNEL_NAME}' \
-    -outputCreateChannelTx ${CONFIGTX_HOME}/'${BASE_CHANNEL_NAME}'.tx
+    -outputCreateChannelTx ${CONFIGTX_HOME}/applicationChannels/'${BASE_CHANNEL_NAME}'/'${BASE_CHANNEL_NAME}'.tx
 
 ###################### INTERNAL COMMAND ######################'
 
@@ -221,12 +223,14 @@ for ORG_NAME in "org1" "org2"; do
     kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
 ###################### INTERNAL COMMAND ######################
 
+mkdir -p ${CONFIGTX_HOME}/peerOrganizations/'${ORG_NAME}'/
+
 configtxgen \
     -configPath ${CONFIGTX_HOME} \
     -profile TwoOrgChannel \
     -channelID '${BASE_CHANNEL_NAME}' \
     -asOrg '${ORG_NAME^}'MSP \
-    -outputAnchorPeersUpdate ${CONFIGTX_HOME}/'${ORG_NAME^}'MSPanchors.tx
+    -outputAnchorPeersUpdate ${CONFIGTX_HOME}/peerOrganizations/'${ORG_NAME}'/'${ORG_NAME^}'MSPanchors.tx
 
 ###################### INTERNAL COMMAND ######################'
 
@@ -280,7 +284,7 @@ kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
 peer channel create \
     -o ${ORDERER_ENDPOINT} \
     -c '${BASE_CHANNEL_NAME}' \
-    -f ${CONFIGTX_HOME}/'${BASE_CHANNEL_NAME}'.tx \
+    -f ${CONFIGTX_HOME}/applicationChannels/'${BASE_CHANNEL_NAME}'/'${BASE_CHANNEL_NAME}'.tx \
     --tls --cafile ${ORDERER_TLS_CA}
 
 ###################### INTERNAL COMMAND ######################'
@@ -316,17 +320,24 @@ export CORE_PEER_TLS_CLIENTROOTCAS_FILES=${CRYPTO_HOME}/peerOrganizations/'${ORG
 export CORE_PEER_TLS_CLIENTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/server.key
 export CORE_PEER_TLS_CLIENTKEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/ca.crt
 
-peer channel fetch oldest '${BASE_CHANNEL_NAME}'.block \
+peer channel fetch oldest ${CONFIGTX_HOME}/applicationChannels/'${BASE_CHANNEL_NAME}'/'${BASE_CHANNEL_NAME}'.block \
     -o ${ORDERER_ENDPOINT} \
     -c '${BASE_CHANNEL_NAME}' \
     --tls --cafile ${ORDERER_TLS_CA}
 
-while sleep 10; do
+for i in {1..10}; do
+
     peer channel join \
-        -b '${BASE_CHANNEL_NAME}'.block
+        -b ${CONFIGTX_HOME}/applicationChannels/'${BASE_CHANNEL_NAME}'/'${BASE_CHANNEL_NAME}'.block
+
     if [ $? -eq 0 ]; then
         break
     fi
+    if [ $i -eq 10 ]; then
+        >&2 echo -e "'${C_RED_BOLD}'ERROR:'${C_RED}' '${PEER_HOSTNAME}' could not join peer to application channel!'${C_RESET}'"
+        exit 1
+    fi
+    sleep 10
 done
 
 ###################### INTERNAL COMMAND ######################'
@@ -361,7 +372,7 @@ export CORE_PEER_TLS_CLIENTKEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME
 peer channel update \
     -o ${ORDERER_ENDPOINT} \
     -c '${BASE_CHANNEL_NAME}' \
-    -f ${CONFIGTX_HOME}/'${ORG_NAME^}'MSPanchors.tx \
+    -f ${CONFIGTX_HOME}/peerOrganizations/'${ORG_NAME}'/'${ORG_NAME^}'MSPanchors.tx \
     --tls --cafile ${ORDERER_TLS_CA}  
 
 ###################### INTERNAL COMMAND ######################'
@@ -383,7 +394,7 @@ for ORG_NAME in "org1" "org2"; do
 ###################### INTERNAL COMMAND ######################
 
 discover \
-    --configFile ${CONFIGTX_HOME}/discovery-conf-'${ORG_NAME}'.yaml \
+    --configFile ${CONFIGTX_HOME}/peerOrganizations/'${ORG_NAME}'/discovery-conf-'${ORG_NAME}'.yaml \
     --tlsCert ${CORE_PEER_TLS_CERT_FILE} \
     --tlsKey ${CORE_PEER_TLS_KEY_FILE} \
     --peerTLSCA ${CORE_PEER_TLS_ROOTCERT_FILE} \
