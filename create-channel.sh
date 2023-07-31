@@ -6,39 +6,6 @@ SCRIPT=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 
 
-##############################################################
-# FUNCTIONS - START
-##############################################################
-
-function assumeRole {
-
-    PEER_HOSTNAME=$1
-
-    OLDIFS=${IFS} && IFS='-' && read -a PEER_HOSTNAME_ARRAY <<< "${PEER_HOSTNAME}" && IFS=${OLDIFS}
-    PEER_NAME=${PEER_HOSTNAME_ARRAY[0]}
-    ORG_NAME=${PEER_HOSTNAME_ARRAY[1]}
-
-    SUPRESS_VERBOSE=$2
-    [[ ${SUPRESS_VERBOSE} -eq 1 ]] || echo -e "${C_BLUE}\nActing on behalf of ${PEER_HOSTNAME} ...${C_RESET}"
-
-    CORE_PEER_LOCALMSPID=${ORG_NAME^}MSP
-    CORE_PEER_ADDRESS=${PEER_HOSTNAME}:7051
-    CORE_PEER_TLS_CERT_FILE=\${CRYPTO_HOME}/peerOrganizations/${ORG_NAME}/peers/${PEER_HOSTNAME}/tls/server.crt
-    CORE_PEER_TLS_KEY_FILE=\${CRYPTO_HOME}/peerOrganizations/${ORG_NAME}/peers/${PEER_HOSTNAME}/tls/server.key
-    CORE_PEER_TLS_ROOTCERT_FILE=\${CRYPTO_HOME}/peerOrganizations/${ORG_NAME}/peers/${PEER_HOSTNAME}/tls/ca.crt
-    CORE_PEER_TLS_CLIENTCERT_FILE=\${CRYPTO_HOME}/peerOrganizations/${ORG_NAME}/peers/${PEER_HOSTNAME}/tls/server.crt
-    CORE_PEER_TLS_CLIENTKEY_FILE=\${CRYPTO_HOME}/peerOrganizations/${ORG_NAME}/peers/${PEER_HOSTNAME}/tls/server.key
-    CORE_PEER_TLS_CLIENTROOTCERT_FILE=\${CRYPTO_HOME}/peerOrganizations/${ORG_NAME}/peers/${PEER_HOSTNAME}/tls/ca.crt
-    CORE_PEER_MSPCONFIGPATH=\${CRYPTO_HOME}/peerOrganizations/${ORG_NAME}/users/${ORG_NAME}admin@${ORG_NAME}/msp
-}
-
-##############################################################
-# FUNCTIONS - END
-##############################################################
-
-
-
-
 ############################################################## 
 # INPUT VARIABLES
 ##############################################################
@@ -321,20 +288,18 @@ printf "${C_BLUE_BOLD}\ncreate-channel.sh:${C_GRAY_ITALIC} ${CHANNEL_NAME} ${C_B
 
 ORG_NAME=$(echo ${ORGS_LIST//,/ }| awk '{print $1;}')
 
-assumeRole peer0-${ORG_NAME}
-
 kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
 ###################### INTERNAL COMMAND ######################
 
-export CORE_PEER_LOCALMSPID='${CORE_PEER_LOCALMSPID}'
-export CORE_PEER_ADDRESS='${CORE_PEER_ADDRESS}'
-export CORE_PEER_MSPCONFIGPATH='${CORE_PEER_MSPCONFIGPATH}'
-export CORE_PEER_TLS_CERT_FILE='${CORE_PEER_TLS_CERT_FILE}'
-export CORE_PEER_TLS_KEY_FILE='${CORE_PEER_TLS_KEY_FILE}'
-export CORE_PEER_TLS_ROOTCERT_FILE='${CORE_PEER_TLS_ROOTCERT_FILE}'
-export CORE_PEER_TLS_CLIENTROOTCAS_FILES='${CORE_PEER_TLS_CLIENTROOTCAS_FILES}'
-export CORE_PEER_TLS_CLIENTCERT_FILE='${CORE_PEER_TLS_CLIENTCERT_FILE}'
-export CORE_PEER_TLS_CLIENTKEY_FILE='${CORE_PEER_TLS_CLIENTKEY_FILE}'
+export CORE_PEER_LOCALMSPID='${ORG_NAME^}'MSP
+export CORE_PEER_ADDRESS=peer0-'${ORG_NAME}':7051
+export CORE_PEER_MSPCONFIGPATH=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/users/'${ORG_NAME}'admin@'${ORG_NAME}'/msp
+export CORE_PEER_TLS_CERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/peer0-'${ORG_NAME}'/tls/server.crt
+export CORE_PEER_TLS_KEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/peer0-'${ORG_NAME}'/tls/server.key
+export CORE_PEER_TLS_ROOTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/peer0-'${ORG_NAME}'/tls/ca.crt
+export CORE_PEER_TLS_CLIENTROOTCAS_FILES=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/peer0-'${ORG_NAME}'/tls/server.crt
+export CORE_PEER_TLS_CLIENTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/peer0-'${ORG_NAME}'/tls/server.key
+export CORE_PEER_TLS_CLIENTKEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/peer0-'${ORG_NAME}'/tls/ca.crt
 
 peer channel create \
     -o ${ORDERER_ENDPOINT} \
@@ -358,23 +323,21 @@ for ORG_NAME in ${ORGS_LIST//,/ }; do
 	PEERS_LIST=$(kubectl get service | awk '{print $1}' | grep ^peer | grep ${ORG_NAME})
 
 	for PEER_HOSTNAME in ${PEERS_LIST}; do
-
-        assumeRole ${PEER_HOSTNAME}
         
         echo -e "${C_BLUE}\nJoining ${PEER_HOSTNAME} ...${C_RESET}"
 
         kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
 ###################### INTERNAL COMMAND ######################
 
-export CORE_PEER_LOCALMSPID='${CORE_PEER_LOCALMSPID}'
-export CORE_PEER_ADDRESS='${CORE_PEER_ADDRESS}'
-export CORE_PEER_MSPCONFIGPATH='${CORE_PEER_MSPCONFIGPATH}'
-export CORE_PEER_TLS_CERT_FILE='${CORE_PEER_TLS_CERT_FILE}'
-export CORE_PEER_TLS_KEY_FILE='${CORE_PEER_TLS_KEY_FILE}'
-export CORE_PEER_TLS_ROOTCERT_FILE='${CORE_PEER_TLS_ROOTCERT_FILE}'
-export CORE_PEER_TLS_CLIENTROOTCAS_FILES='${CORE_PEER_TLS_CLIENTROOTCAS_FILES}'
-export CORE_PEER_TLS_CLIENTCERT_FILE='${CORE_PEER_TLS_CLIENTCERT_FILE}'
-export CORE_PEER_TLS_CLIENTKEY_FILE='${CORE_PEER_TLS_CLIENTKEY_FILE}'
+export CORE_PEER_LOCALMSPID='${ORG_NAME^}'MSP
+export CORE_PEER_ADDRESS='${PEER_HOSTNAME}':7051
+export CORE_PEER_MSPCONFIGPATH=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/users/'${ORG_NAME}'admin@'${ORG_NAME}'/msp
+export CORE_PEER_TLS_CERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/server.crt
+export CORE_PEER_TLS_KEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/server.key
+export CORE_PEER_TLS_ROOTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/ca.crt
+export CORE_PEER_TLS_CLIENTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/server.crt
+export CORE_PEER_TLS_CLIENTKEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/server.key
+export CORE_PEER_TLS_CLIENTROOTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/ca.crt
 
 peer channel fetch oldest '${CHANNEL_NAME}'.block \
     -o ${ORDERER_ENDPOINT} \

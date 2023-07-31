@@ -66,7 +66,7 @@ while [ : ]; do
     esac
 done
 
-printf "${C_BLUE_BOLD}\ncrypto-config.sh:${C_BLUE}\n > DEFINING INPUT VARIABLE\n\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-crypto.sh:${C_BLUE}\n > DEFINING INPUT VARIABLE\n\n${C_RESET}"
 
 set -x
 ORG_NAME=${ORG_NAME}

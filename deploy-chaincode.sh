@@ -6,44 +6,11 @@ SCRIPT=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 
 
-##############################################################
-# FUNCTIONS - START
-##############################################################
-
-function assumeRole {
-
-    PEER_HOSTNAME=$1
-
-    OLDIFS=${IFS} && IFS='-' && read -a PEER_HOSTNAME_ARRAY <<< "${PEER_HOSTNAME}" && IFS=${OLDIFS}
-    PEER_NAME=${PEER_HOSTNAME_ARRAY[0]}
-    ORG_NAME=${PEER_HOSTNAME_ARRAY[1]}
-
-    SUPRESS_VERBOSE=$2
-    [[ ${SUPRESS_VERBOSE} -eq 1 ]] || echo -e "${C_BLUE}\nActing on behalf of ${PEER_HOSTNAME} ...${C_RESET}"
-
-    CORE_PEER_LOCALMSPID=${ORG_NAME^}MSP
-    CORE_PEER_ADDRESS=${PEER_HOSTNAME}:7051
-    CORE_PEER_TLS_CERT_FILE=\${CRYPTO_HOME}/peerOrganizations/${ORG_NAME}/peers/${PEER_HOSTNAME}/tls/server.crt
-    CORE_PEER_TLS_KEY_FILE=\${CRYPTO_HOME}/peerOrganizations/${ORG_NAME}/peers/${PEER_HOSTNAME}/tls/server.key
-    CORE_PEER_TLS_ROOTCERT_FILE=\${CRYPTO_HOME}/peerOrganizations/${ORG_NAME}/peers/${PEER_HOSTNAME}/tls/ca.crt
-    CORE_PEER_TLS_CLIENTCERT_FILE=\${CRYPTO_HOME}/peerOrganizations/${ORG_NAME}/peers/${PEER_HOSTNAME}/tls/server.crt
-    CORE_PEER_TLS_CLIENTKEY_FILE=\${CRYPTO_HOME}/peerOrganizations/${ORG_NAME}/peers/${PEER_HOSTNAME}/tls/server.key
-    CORE_PEER_TLS_CLIENTROOTCERT_FILE=\${CRYPTO_HOME}/peerOrganizations/${ORG_NAME}/peers/${PEER_HOSTNAME}/tls/ca.crt
-    CORE_PEER_MSPCONFIGPATH=\${CRYPTO_HOME}/peerOrganizations/${ORG_NAME}/users/${ORG_NAME}admin@${ORG_NAME}/msp
-}
-
-##############################################################
-# FUNCTIONS - END
-##############################################################
-
-
-
-
 ############################################################## 
 # INPUT VARIABLES
 ##############################################################
 
-VALID_ARGS=$(getopt -o h\0 --long help,chaincode-image:,chaincode-label:,chaincode-version:,channel-name:,channel-org-name:,collections-config:,signature-policy: -- "$@")
+VALID_ARGS=$(getopt -o h\0 --long help,chaincode-image:,chaincode-label:,chaincode-version:,channel-name:,channel-org-name:,collections-config:,signature-policy:,init-required: -- "$@")
 if [[ $? -ne 0 ]]; then
     exit 1;
 fi
@@ -64,6 +31,7 @@ while [ : ]; do
             echo -e "\nOptional flags:"
             echo -e "  --collections-config: The local path to the configuration file for the collections of the deployed chaincode, if applicable."
             echo -e "  --signature-policy: The signature policy of the deployed chaincode, if applicable."
+            echo -e "  --init-required: Specifies whether or not - 'true' or 'false' - the deployed chaincode requires an init function invoked before usage. If not specified, defaults to 'false'."
             exit 1
             ;;
         --chaincode-image)
@@ -94,6 +62,10 @@ while [ : ]; do
             SIGNATURE_POLICY=$2
             shift 2
             ;;
+        --init-required)
+            INIT_REQUIRED=$2
+            shift 2
+            ;;
         --) shift; 
             break 
             ;;
@@ -110,11 +82,17 @@ CHANNEL_NAME=${CHANNEL_NAME}
 CHANNEL_ORG_NAME=${CHANNEL_ORG_NAME}
 COLLECTIONS_CONFIG=${COLLECTIONS_CONFIG:-"NA"}
 SIGNATURE_POLICY=${SIGNATURE_POLICY:-"NA"}
+INIT_REQUIRED=${INIT_REQUIRED:-false}
 { set +x; } 2>/dev/null
 
-[[ -z ${CHAINCODE_IMAGE} || -z ${CHAINCODE_LABEL} || -z ${CHAINCODE_VERSION} || -z ${CHANNEL_NAME} || -z ${CHANNEL_ORG_NAME} || -z ${COLLECTIONS_CONFIG} || -z ${SIGNATURE_POLICY} ]] && {
+[[ -z ${CHAINCODE_IMAGE} || -z ${CHAINCODE_LABEL} || -z ${CHAINCODE_VERSION} || -z ${CHANNEL_NAME} || -z ${CHANNEL_ORG_NAME} || -z ${COLLECTIONS_CONFIG} || -z ${SIGNATURE_POLICY} || -z ${INIT_REQUIRED} ]] && {
     >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} one or more mandatory arguments have not been provided!${C_RESET}"
     exit 1   
+}
+
+[[ ${INIT_REQUIRED} == true || ${INIT_REQUIRED} == false ]] || {
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} The value of the --init-required flag must be either 'true' or 'false'!${C_RESET}"
+    exit 1    
 }
 
 
@@ -146,8 +124,8 @@ done
 # peer parameters for long commands
 PEER_PARAMETERS=""
 for PEER_HOSTNAME in ${PEERS_LIST}; do
-    assumeRole ${PEER_HOSTNAME} 1
-    PEER_PARAMETERS="${PEER_PARAMETERS} --peerAddresses ${CORE_PEER_ADDRESS} --tlsRootCertFiles ${CORE_PEER_TLS_ROOTCERT_FILE}"
+    ORG_NAME=${PEER_HOSTNAME#*-}
+    PEER_PARAMETERS="${PEER_PARAMETERS} --peerAddresses ${PEER_HOSTNAME}:7051 --tlsRootCertFiles \${CRYPTO_HOME}/peerOrganizations/${ORG_NAME}/peers/${PEER_HOSTNAME}/tls/ca.crt"
 done
 
 # additional flags
@@ -165,6 +143,10 @@ mv /tmp/'${CHAINCODE_LABEL}'-collections-config.json ${CONFIGTX_HOME}/applicatio
 
 [[ ${SIGNATURE_POLICY} == "NA" ]] || {
     SIGNATURE_POLICY_FLAG=$(echo "--signature-policy ${SIGNATURE_POLICY}" | sed 's/'\''/%/g')
+}
+
+[[ ${INIT_REQUIRED} == true ]] && {
+    INIT_REQUIRED_FLAG="--init-required"
 }
 
 
@@ -221,20 +203,22 @@ printf "${C_BLUE_BOLD}\ndeploy-chaincode.sh:${C_GRAY_ITALIC} ${CHAINCODE_LABEL}:
 
 for PEER_HOSTNAME in ${PEERS_LIST}; do
 
-    assumeRole ${PEER_HOSTNAME}
+    echo -e "${C_BLUE}\nActing on behalf of ${PEER_HOSTNAME} ...${C_RESET}"
+
+    ORG_NAME=${PEER_HOSTNAME#*-}
 
     kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
 ###################### INTERNAL COMMAND ######################
 
-export CORE_PEER_LOCALMSPID='${CORE_PEER_LOCALMSPID}'
-export CORE_PEER_ADDRESS='${CORE_PEER_ADDRESS}'
-export CORE_PEER_MSPCONFIGPATH='${CORE_PEER_MSPCONFIGPATH}'
-export CORE_PEER_TLS_CERT_FILE='${CORE_PEER_TLS_CERT_FILE}'
-export CORE_PEER_TLS_KEY_FILE='${CORE_PEER_TLS_KEY_FILE}'
-export CORE_PEER_TLS_ROOTCERT_FILE='${CORE_PEER_TLS_ROOTCERT_FILE}'
-export CORE_PEER_TLS_CLIENTROOTCAS_FILES='${CORE_PEER_TLS_CLIENTROOTCAS_FILES}'
-export CORE_PEER_TLS_CLIENTCERT_FILE='${CORE_PEER_TLS_CLIENTCERT_FILE}'
-export CORE_PEER_TLS_CLIENTKEY_FILE='${CORE_PEER_TLS_CLIENTKEY_FILE}'
+export CORE_PEER_LOCALMSPID='${ORG_NAME^}'MSP
+export CORE_PEER_ADDRESS='${PEER_HOSTNAME}':7051
+export CORE_PEER_MSPCONFIGPATH=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/users/'${ORG_NAME}'admin@'${ORG_NAME}'/msp
+export CORE_PEER_TLS_CERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/server.crt
+export CORE_PEER_TLS_KEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/server.key
+export CORE_PEER_TLS_ROOTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/ca.crt
+export CORE_PEER_TLS_CLIENTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/server.crt
+export CORE_PEER_TLS_CLIENTKEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/server.key
+export CORE_PEER_TLS_CLIENTROOTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/ca.crt
 
 peer lifecycle chaincode install ${CONFIGTX_HOME}/applicationChannels/'${CHANNEL_NAME}'/chaincodes/'${CHAINCODE_LABEL}'/'${CHAINCODE_LABEL}'-'${ORG_NAME}'.tgz
 
@@ -331,20 +315,20 @@ printf "${C_BLUE_BOLD}\ndeploy-chaincode.sh:${C_GRAY_ITALIC} ${CHAINCODE_LABEL}:
 
 for ORG_NAME in ${CHANNEL_ORGS_LIST}; do
 
-    assumeRole peer0-${ORG_NAME}
+    echo -e "${C_BLUE}\nActing on behalf of peer0-${ORG_NAME} ...${C_RESET}"
 
     kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
 ###################### INTERNAL COMMAND ######################
 
-export CORE_PEER_LOCALMSPID='${CORE_PEER_LOCALMSPID}'
-export CORE_PEER_ADDRESS='${CORE_PEER_ADDRESS}'
-export CORE_PEER_MSPCONFIGPATH='${CORE_PEER_MSPCONFIGPATH}'
-export CORE_PEER_TLS_CERT_FILE='${CORE_PEER_TLS_CERT_FILE}'
-export CORE_PEER_TLS_KEY_FILE='${CORE_PEER_TLS_KEY_FILE}'
-export CORE_PEER_TLS_ROOTCERT_FILE='${CORE_PEER_TLS_ROOTCERT_FILE}'
-export CORE_PEER_TLS_CLIENTROOTCAS_FILES='${CORE_PEER_TLS_CLIENTROOTCAS_FILES}'
-export CORE_PEER_TLS_CLIENTCERT_FILE='${CORE_PEER_TLS_CLIENTCERT_FILE}'
-export CORE_PEER_TLS_CLIENTKEY_FILE='${CORE_PEER_TLS_CLIENTKEY_FILE}'
+export CORE_PEER_LOCALMSPID='${ORG_NAME^}'MSP
+export CORE_PEER_ADDRESS=peer0-'${ORG_NAME}':7051
+export CORE_PEER_MSPCONFIGPATH=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/users/'${ORG_NAME}'admin@'${ORG_NAME}'/msp
+export CORE_PEER_TLS_CERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/peer0-'${ORG_NAME}'/tls/server.crt
+export CORE_PEER_TLS_KEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/peer0-'${ORG_NAME}'/tls/server.key
+export CORE_PEER_TLS_ROOTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/peer0-'${ORG_NAME}'/tls/ca.crt
+export CORE_PEER_TLS_CLIENTROOTCAS_FILES=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/peer0-'${ORG_NAME}'/tls/server.crt
+export CORE_PEER_TLS_CLIENTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/peer0-'${ORG_NAME}'/tls/server.key
+export CORE_PEER_TLS_CLIENTKEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/peer0-'${ORG_NAME}'/tls/ca.crt
 
 COLLECTIONS_CONFIG_FLAG=$(eval echo '"'${COLLECTIONS_CONFIG_FLAG}'"')
 SIGNATURE_POLICY_FLAG=$(echo '"'${SIGNATURE_POLICY_FLAG}'"' | sed "s/%/'\''/g")
@@ -355,12 +339,12 @@ peer lifecycle chaincode approveformyorg \
     --channelID '${CHANNEL_NAME}' \
     --name '${CHAINCODE_LABEL}' \
     --version '${CHAINCODE_VERSION}' \
-    --init-required \
     --package-id ${PACKAGE_ID} \
     --sequence '${CHAINCODE_VERSION}' \
     -o ${ORDERER_ENDPOINT} \
     ${COLLECTIONS_CONFIG_FLAG} \
     ${SIGNATURE_POLICY_FLAG} \
+    '${INIT_REQUIRED_FLAG}' \
     --tls --cafile ${ORDERER_TLS_CA}
 
 ###################### INTERNAL COMMAND ######################'
@@ -376,8 +360,20 @@ done
 
 printf "${C_BLUE_BOLD}\ndeploy-chaincode.sh:${C_GRAY_ITALIC} ${CHAINCODE_LABEL}:${CHAINCODE_VERSION} ${C_BLUE}\n > COMMITTING CHAINCODE\n\n${C_RESET}"
 
+echo -e "${C_BLUE}\nActing on behalf of peer0-${CHANNEL_ORG_NAME} ...${C_RESET}"
+
 kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
 ###################### INTERNAL COMMAND ######################
+
+export CORE_PEER_LOCALMSPID='${CHANNEL_ORG_NAME^}'MSP
+export CORE_PEER_ADDRESS=peer0-'${CHANNEL_ORG_NAME}':7051
+export CORE_PEER_MSPCONFIGPATH=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/users/'${CHANNEL_ORG_NAME}'admin@'${CHANNEL_ORG_NAME}'/msp
+export CORE_PEER_TLS_CERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/server.crt
+export CORE_PEER_TLS_KEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/server.key
+export CORE_PEER_TLS_ROOTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/ca.crt
+export CORE_PEER_TLS_CLIENTROOTCAS_FILES=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/server.crt
+export CORE_PEER_TLS_CLIENTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/server.key
+export CORE_PEER_TLS_CLIENTKEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/ca.crt
 
 COLLECTIONS_CONFIG_FLAG=$(eval echo '"'${COLLECTIONS_CONFIG_FLAG}'"')
 SIGNATURE_POLICY_FLAG=$(echo '"'${SIGNATURE_POLICY_FLAG}'"' | sed "s/%/'\''/g")
@@ -387,11 +383,11 @@ peer lifecycle chaincode commit \
     --channelID '${CHANNEL_NAME}' \
     --name '${CHAINCODE_LABEL}' \
     --version '${CHAINCODE_VERSION}' \
-    --init-required \
     --sequence '${CHAINCODE_VERSION}' \
     -o ${ORDERER_ENDPOINT} \
     ${COLLECTIONS_CONFIG_FLAG} \
     ${SIGNATURE_POLICY_FLAG} \
+    '${INIT_REQUIRED_FLAG}' \
     ${PEER_PARAMETERS} \
     --tls --cafile ${ORDERER_TLS_CA}
 
