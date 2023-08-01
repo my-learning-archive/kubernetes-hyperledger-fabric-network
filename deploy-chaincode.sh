@@ -10,7 +10,7 @@ SCRIPT=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 # INPUT VARIABLES
 ##############################################################
 
-VALID_ARGS=$(getopt -o h\0 --long help,chaincode-image:,chaincode-label:,chaincode-version:,channel-name:,channel-org-name:,collections-config:,signature-policy:,init-required: -- "$@")
+VALID_ARGS=$(getopt -o h\0 --long help,chaincode-image:,chaincode-label:,channel-name:,channel-org-name:,collections-config:,signature-policy:,init-required: -- "$@")
 if [[ $? -ne 0 ]]; then
     exit 1;
 fi
@@ -25,7 +25,6 @@ while [ : ]; do
             echo -e "\nRequired flags:"
             echo -e "  --chaincode-image: The container image of deployed chaincode - must be available within the Kubernetes cluster."
             echo -e "  --chaincode-label: The label of deployed chaincode."
-            echo -e "  --chaincode-version: The version of the deployed chaincode."           
             echo -e "  --channel-name: The name of the Hyperledger Fabric application channel the chaincode will be deployed to."
             echo -e "  --channel-org-name: The name of one of one Hyperledger Fabric organization in the channel the chaincode will be deployed to."
             echo -e "\nOptional flags:"
@@ -40,10 +39,6 @@ while [ : ]; do
             ;;
         --chaincode-label)
             CHAINCODE_LABEL=$2
-            shift 2
-            ;;
-        --chaincode-version)
-            CHAINCODE_VERSION=$2
             shift 2
             ;;
         --channel-name)
@@ -77,7 +72,6 @@ printf "${C_BLUE_BOLD}\ndeploy-chaincode.sh:${C_BLUE}\n > DEFINING INPUT VARIABL
 set -x
 CHAINCODE_IMAGE=${CHAINCODE_IMAGE}
 CHAINCODE_LABEL=${CHAINCODE_LABEL}
-CHAINCODE_VERSION=${CHAINCODE_VERSION}
 CHANNEL_NAME=${CHANNEL_NAME}
 CHANNEL_ORG_NAME=${CHANNEL_ORG_NAME}
 COLLECTIONS_CONFIG=${COLLECTIONS_CONFIG:-"NA"}
@@ -85,7 +79,7 @@ SIGNATURE_POLICY=${SIGNATURE_POLICY:-"NA"}
 INIT_REQUIRED=${INIT_REQUIRED:-false}
 { set +x; } 2>/dev/null
 
-[[ -z ${CHAINCODE_IMAGE} || -z ${CHAINCODE_LABEL} || -z ${CHAINCODE_VERSION} || -z ${CHANNEL_NAME} || -z ${CHANNEL_ORG_NAME} || -z ${COLLECTIONS_CONFIG} || -z ${SIGNATURE_POLICY} || -z ${INIT_REQUIRED} ]] && {
+[[ -z ${CHAINCODE_IMAGE} || -z ${CHAINCODE_LABEL} || -z ${CHANNEL_NAME} || -z ${CHANNEL_ORG_NAME} || -z ${COLLECTIONS_CONFIG} || -z ${SIGNATURE_POLICY} || -z ${INIT_REQUIRED} ]] && {
     >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} One or more mandatory arguments have not been provided. Exiting. ${C_RESET}"
     exit 1   
 }
@@ -114,10 +108,43 @@ KUBERNETES_CLI_HOSTNAME=${ENV_KUBERNETES_CLI_HOSTNAME}
 
 KUBERNETES_CLI_POD_NAME=$(kubectl get pods | grep ^${KUBERNETES_CLI_HOSTNAME}-* | awk '{print $1}')
 
-# list of orgs in target channel
-CHANNEL_ORGS_LIST=$(kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c 'discover --configFile ${CONFIGTX_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/discovery-conf-'${CHANNEL_ORG_NAME}'.yaml config --channel '${CHANNEL_NAME}' --server peer0-'${CHANNEL_ORG_NAME}':7051' | grep name | grep -v "Orderer" | awk '{print $2}' | tr -d '",MSP' | tr '[:upper:]' '[:lower:]' | sort | uniq | sed 's/\r$//')
+# determine chaincode version
+CHAINCODE_VERSION=$(kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
+###################### INTERNAL COMMAND ######################
 
-# list of peers in target channel
+export CORE_PEER_LOCALMSPID='${CHANNEL_ORG_NAME^}'MSP
+export CORE_PEER_ADDRESS=peer0-'${CHANNEL_ORG_NAME}':7051
+export CORE_PEER_MSPCONFIGPATH=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/users/'${CHANNEL_ORG_NAME}'admin@'${CHANNEL_ORG_NAME}'/msp
+export CORE_PEER_TLS_CERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/server.crt
+export CORE_PEER_TLS_KEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/server.key
+export CORE_PEER_TLS_ROOTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/ca.crt
+export CORE_PEER_TLS_CLIENTROOTCAS_FILES=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/server.crt
+export CORE_PEER_TLS_CLIENTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/server.key
+export CORE_PEER_TLS_CLIENTKEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/ca.crt
+
+peer lifecycle chaincode querycommitted \
+    --channelID '${CHANNEL_NAME}'
+    
+###################### INTERNAL COMMAND ######################' | tail -n +2 | grep ${CHAINCODE_LABEL} | tr -d ',' | awk '{print $6}')
+
+[[ ${CHAINCODE_VERSION} == "" ]] && {
+    CHAINCODE_VERSION="1"
+} || { 
+    CHAINCODE_VERSION=$((CHAINCODE_VERSION+1))
+}
+
+# determine list of orgs in application channel
+CHANNEL_ORGS_LIST=$(kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
+###################### INTERNAL COMMAND ######################
+
+discover \
+    --configFile ${CONFIGTX_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/discovery-conf-'${CHANNEL_ORG_NAME}'.yaml config \
+    --channel '${CHANNEL_NAME}' \
+    --server peer0-'${CHANNEL_ORG_NAME}':7051
+    
+###################### INTERNAL COMMAND ######################' | grep name | grep -v "Orderer" | awk '{print $2}' | tr -d '",MSP' | tr '[:upper:]' '[:lower:]' | sort | uniq | sed 's/\r$//')
+
+# determine list of peers in application channel
 PEERS_LIST=""
 for ORG_NAME in ${CHANNEL_ORGS_LIST}; do
     PEERS_LIST="${PEERS_LIST} "$(kubectl get services | awk '{print $1}' | grep ^peer | grep ${ORG_NAME} | sort)
@@ -135,7 +162,7 @@ for PEER_HOSTNAME in ${PEERS_LIST}; do
     PEER_PARAMETERS="${PEER_PARAMETERS} --peerAddresses ${PEER_HOSTNAME}:7051 --tlsRootCertFiles \${CRYPTO_HOME}/peerOrganizations/${ORG_NAME}/peers/${PEER_HOSTNAME}/tls/ca.crt"
 done
 
-# additional flags
+# process additional flags
 [[ ${COLLECTIONS_CONFIG} == "NA" ]] || {
     kubectl cp ${COLLECTIONS_CONFIG} ${KUBERNETES_CLI_POD_NAME}:/tmp/${CHAINCODE_LABEL}-collections-config.json # Hyperledger, c'mon... this is not cloud native...
     kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
@@ -300,7 +327,7 @@ spec:
             - containerPort: 7052
 EOF
 
-kubectl apply -f ${SCRIPT}/kubernetes-manifests/expand/${ORG_NAME}/${CHANNEL_NAME}-${CHAINCODE_LABEL}-${ORG_NAME}.yaml
+    kubectl apply -f ${SCRIPT}/kubernetes-manifests/expand/${ORG_NAME}/${CHANNEL_NAME}-${CHAINCODE_LABEL}-${ORG_NAME}.yaml
 
 done
 

@@ -194,9 +194,6 @@ spec:
     - name: tcp-7051
       port: 7051
       protocol: TCP
-    - name: tcp-7053
-      port: 7053
-      protocol: TCP
 
 ---
 

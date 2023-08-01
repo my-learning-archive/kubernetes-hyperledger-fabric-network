@@ -297,10 +297,7 @@ fabric-ca-client register \
     --id.type '${USER_TYPE}' ${USER_ROLE_FLAG} \
     --tls.certfiles ${CRYPTO_HOME}/'${ORG_CA_TLS_CERTIFICATE}'
 
-###################### INTERNAL COMMAND ######################' || {
-        >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not register user. Exiting. ${C_RESET}"
-        exit 1
-    }
+###################### INTERNAL COMMAND ######################'
 
     echo -e "${C_BLUE}\nGenerating MSP: ${USER_USERNAME}@${ORG_NAME} ...${C_RESET}"
 
@@ -400,10 +397,7 @@ fabric-ca-client register \
     --id.type '${USER_TYPE}' ${USER_ROLE_FLAG} \
     --tls.certfiles ${CRYPTO_HOME}/'${TLS_CA_TLS_CERTIFICATE}'
 
-###################### INTERNAL COMMAND ######################' || {
-        >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not register user. Exiting. ${C_RESET}"
-        exit 1
-    }
+###################### INTERNAL COMMAND ######################'
 
     echo -e "${C_BLUE}\nGenerating TLS: ${USER_USERNAME}@${ORG_NAME} ...${C_RESET}"
 
@@ -491,10 +485,7 @@ fabric-ca-client register \
     --id.type '${ENTITY_TYPE}' \
     --tls.certfiles ${CRYPTO_HOME}/'${ORG_CA_TLS_CERTIFICATE}'
 
-###################### INTERNAL COMMAND ######################' || {
-        >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not register entity. Exiting. ${C_RESET}"
-        exit 1
-    }
+###################### INTERNAL COMMAND ######################'
 
     echo -e "${C_BLUE}\nGenerating MSP: ${ENTITY_NAME}-${ORG_NAME} ...${C_RESET}"
 
@@ -579,10 +570,7 @@ fabric-ca-client register \
     --id.type '${ENTITY_TYPE}' \
     --tls.certfiles ${CRYPTO_HOME}/'${TLS_CA_TLS_CERTIFICATE}'
 
-###################### INTERNAL COMMAND ######################' || {
-        >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not register entity. Exiting. ${C_RESET}"
-        exit 1
-    }
+###################### INTERNAL COMMAND ######################'
 
     echo -e "${C_BLUE}\nGenerating TLS: ${ENTITY_NAME}-${ORG_NAME} ...${C_RESET}"
 

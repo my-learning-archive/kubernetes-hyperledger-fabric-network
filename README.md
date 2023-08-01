@@ -106,7 +106,6 @@ An HLF chaincode can be deployed to an application channel with the `deploy-chai
 ./deploy-chaincode.sh \
  --chaincode-image chaincode-marbles \
  --chaincode-label marbles \
- --chaincode-version 1 \
  --channel-name base-channel \
  --channel-org-name org1
 ```
@@ -128,7 +127,7 @@ An HLF organization can be created with the `create-org.sh` script. Optionally, 
 
 ### **How to join existing Hyperledger Fabric organizations to existing application channels:**
 
-An existing HLF organization can be joined to an existing application channel with the `join-org-to-channel.sh` script. If the channel contains a previously committed chaincode, it will not be accessible to the newly joined organization right away, and must be redeployed, with an increased version number, for the newly joined organization to participate in its execution. In this scenario, the peers of the newly joined organization will replicate the world state of the previous version of the chaincode. For more information, execute `./join-org-to-channel.sh --help`.
+An existing HLF organization can be joined to an existing application channel with the `join-org-to-channel.sh` script. If the channel contains a previously committed chaincode, it will not be accessible to the newly joined organization right away, and must be redeployed - this will automatically increase its version number - for the newly joined organization to participate in its execution. In this scenario, the peers of the newly joined organization will replicate the world state of the previous version of the chaincode. For more information, execute `./join-org-to-channel.sh --help`.
 
 ```bash
 ./join-org-to-channel.sh \
@@ -150,6 +149,28 @@ A HLF peer can be created with the `create-peer.sh` script. This script joins th
  --tls-ca-admin-password tls-adminpw
 ```
 
+### **Quick start:**
+
+Lastly, all of the above commands are concatenated in a single command, for convenience:
+
+```bash
+./teardown.sh && ./start.sh && \
+
+./create-user.sh --org-name org1 --user-type client --user-hostname host.minikube.internal --user-username user1-org1 --user-password user1-org1-pw --org-ca-admin-username admin --org-ca-admin-password adminpw --tls-ca-admin-username tls-admin --tls-ca-admin-password tls-adminpw --user-role WRITER && \
+
+./create-user.sh --org-name org2 --user-type client --user-hostname host.minikube.internal --user-username user1-org2 --user-password user1-org2-pw --org-ca-admin-username admin --org-ca-admin-password adminpw --tls-ca-admin-username tls-admin --tls-ca-admin-password tls-adminpw --user-role READER && \
+
+./create-channel.sh --channel-name new-channel --orgs-list org1,org2 && \
+
+./deploy-chaincode.sh --chaincode-image chaincode-marbles --chaincode-label marbles --channel-name base-channel --channel-org-name org1 && \
+
+./create-org.sh --org-name org3 --org-ca-admin-username admin --org-ca-admin-password adminpw --tls-ca-admin-username tls-admin --tls-ca-admin-password tls-adminpw --channel-name base-channel --channel-org-name org1 && \
+
+./join-org-to-channel.sh --org-name org3 --channel-name new-channel --channel-org-name org1 && \
+
+./create-peer.sh --org-name org1 --org-ca-admin-username admin --org-ca-admin-password adminpw --tls-ca-admin-username tls-admin --tls-ca-admin-password tls-adminpw
+```
+
 ---
 ## Testing:
 
@@ -165,9 +186,10 @@ peer chaincode invoke --channelID base-channel --name marbles -o orderer0-ordere
 
 ---
 ## TODO:
-- ~~Collection profiles are still unsupported in deploy-chaincode.sh~~ Chaincode deployment with collections-config files is not cloud native, because said collection-config files need to exist locally... Find a way to fix this.
+- Gateway peers exposed to the outside via k8s' NodePort - this is not secure - use ingress instead.
+- deploy-chaincode.sh: Find cloud native alternative to pass collection-config onto the k8s cluster.
 - Migrate what should be implemented as k8s *Secrets* to that format.
+- ~~Collection profiles are still unsupported in deploy-chaincode.sh~~ Chaincode deployment with collections-config files is not cloud native, because said collection-config files need to exist locally... Find a way to fix this.
 - ~~Right now, because of the service and directory conventions, there can't be two chaincodes with different names in the same channel, fix this...~~
 - ~~./create-org.sh - new orgs joining channel stilll can't use chaincode (... has not yet been approved by this org)~~ After an org is added to the channel, it is required to run the deploy-chaincode.sh script again, for the same chaincode, but with increased version number.
 - ~~error checking after every single kubectl exec command.~~
-- deploy-chaincode.sh: Find cloud native alternative to pass collection-config onto the k8s cluster.
