@@ -57,8 +57,7 @@ done
 sleep 10
 
 # are all services are running?
-kubectl get pods | awk '{print $3}' | tail -n +2 | awk '!seen[$0]++ && NR>1{exit 1}'
-[[ ! $? -eq 0 ]] && {
+[[ $(kubectl get pods | awk '{print $3}' | tail -n +2 | uniq) != "Running" ]] && {
     >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} One or more containers did not start. Exiting. ${C_RESET}"
     exit 1
 } 
@@ -85,29 +84,29 @@ for ORG_NAME in "org1" "org2"; do
         --org-ca-admin-password ${ORG_CA_ADMIN_PASSWORD} \
         --tls-ca-hostname ${KUBERNETES_TLS_CA_HOSTNAME} \
         --tls-ca-admin-username ${TLS_CA_ADMIN_USERNAME} \
-        --tls-ca-admin-password ${TLS_CA_ADMIN_PASSWORD}
+        --tls-ca-admin-password ${TLS_CA_ADMIN_PASSWORD} || exit 1
 
-    createOrg
+    createOrg || exit 1
     
     createEntity \
         --entity-name peer0 \
         --entity-username peer0-${ORG_NAME}-un \
-        --entity-password peer0-${ORG_NAME}-pw
+        --entity-password peer0-${ORG_NAME}-pw || exit 1
     
     createEntityTLS \
         --entity-name peer0 \
         --entity-username peer0-${ORG_NAME}-un \
-        --entity-password peer0-${ORG_NAME}-pw
+        --entity-password peer0-${ORG_NAME}-pw || exit 1
     
     createEntity \
         --entity-name peer1 \
         --entity-username peer1-${ORG_NAME}-un \
-        --entity-password peer1-${ORG_NAME}-pw
+        --entity-password peer1-${ORG_NAME}-pw || exit 1
     
     createEntityTLS \
         --entity-name peer1 \
         --entity-username peer1-${ORG_NAME}-un \
-        --entity-password peer1-${ORG_NAME}-pw
+        --entity-password peer1-${ORG_NAME}-pw || exit 1
 
 done
 
@@ -131,39 +130,39 @@ source create-crypto.sh \
     --org-ca-admin-password ${ORG_CA_ADMIN_PASSWORD} \
     --tls-ca-hostname ${KUBERNETES_TLS_CA_HOSTNAME} \
     --tls-ca-admin-username ${TLS_CA_ADMIN_USERNAME} \
-    --tls-ca-admin-password ${TLS_CA_ADMIN_PASSWORD}
+    --tls-ca-admin-password ${TLS_CA_ADMIN_PASSWORD} || exit 1
 
-createOrg
+createOrg || exit 1
 
 createEntity \
     --entity-name orderer0 \
     --entity-username orderer0-orderers-un \
-    --entity-password orderer0-orderers-pw
+    --entity-password orderer0-orderers-pw || exit 1
 
 createEntityTLS \
     --entity-name orderer0 \
     --entity-username orderer0-orderers-un \
-    --entity-password orderer0-orderers-pw
+    --entity-password orderer0-orderers-pw || exit 1
 
 createEntity \
     --entity-name orderer1 \
     --entity-username orderer1-orderers-un \
-    --entity-password orderer1-orderers-pw
+    --entity-password orderer1-orderers-pw || exit 1
 
 createEntityTLS \
     --entity-name orderer1 \
     --entity-username orderer1-orderers-un \
-    --entity-password orderer1-orderers-pw
+    --entity-password orderer1-orderers-pw || exit 1
 
 createEntity \
     --entity-name orderer2 \
     --entity-username orderer2-orderers-un \
-    --entity-password orderer2-orderers-pw
+    --entity-password orderer2-orderers-pw || exit 1
 
 createEntityTLS \
     --entity-name orderer2 \
     --entity-username orderer2-orderers-un \
-    --entity-password orderer2-orderers-pw
+    --entity-password orderer2-orderers-pw || exit 1
 
 
 
@@ -185,7 +184,10 @@ configtxgen \
     -channelID ${SYS_CHANNEL_NAME} \
     -outputBlock ${CONFIGTX_HOME}/genesis.block
 
-###################### INTERNAL COMMAND ######################'
+###################### INTERNAL COMMAND ######################' || {
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not generate genesis block. Exiting. ${C_RESET}"
+    exit 1
+}
 
 
 
@@ -207,7 +209,10 @@ configtxgen \
     -channelID '${BASE_CHANNEL_NAME}' \
     -outputCreateChannelTx ${CONFIGTX_HOME}/applicationChannels/'${BASE_CHANNEL_NAME}'/'${BASE_CHANNEL_NAME}'.tx
 
-###################### INTERNAL COMMAND ######################'
+###################### INTERNAL COMMAND ######################' || {
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not generate base application channel creation transaction. Exiting. ${C_RESET}"
+    exit 1
+}
 
 
 
@@ -232,7 +237,10 @@ configtxgen \
     -asOrg '${ORG_NAME^}'MSP \
     -outputAnchorPeersUpdate ${CONFIGTX_HOME}/peerOrganizations/'${ORG_NAME}'/'${ORG_NAME^}'MSPanchors.tx
 
-###################### INTERNAL COMMAND ######################'
+###################### INTERNAL COMMAND ######################' || {
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not generate anchor peer update transaction. Exiting. ${C_RESET}"
+    exit 1
+}
 
 done
 
@@ -263,8 +271,7 @@ done
 sleep 10
 
 # are all services are running?
-kubectl get pods | awk '{print $3}' | tail -n +2 | awk '!seen[$0]++ && NR>1{exit 1}'
-[[ ! $? -eq 0 ]] && {
+[[ $(kubectl get pods | awk '{print $3}' | tail -n +2 | uniq) != "Running" ]] && {
     >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} One or more containers did not start. Exiting. ${C_RESET}"
     exit 1
 } 
@@ -287,7 +294,10 @@ peer channel create \
     -f ${CONFIGTX_HOME}/applicationChannels/'${BASE_CHANNEL_NAME}'/'${BASE_CHANNEL_NAME}'.tx \
     --tls --cafile ${ORDERER_TLS_CA}
 
-###################### INTERNAL COMMAND ######################'
+###################### INTERNAL COMMAND ######################' || {
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not create base application channel. Exiting. ${C_RESET}"
+    exit 1
+}
 
 
 
@@ -334,13 +344,15 @@ for i in {1..10}; do
         break
     fi
     if [ $i -eq 10 ]; then
-        >&2 echo -e "'${C_RED_BOLD}'ERROR:'${C_RED}' '${PEER_HOSTNAME}' could not join peer to application channel!'${C_RESET}'"
         exit 1
     fi
     sleep 10
 done
 
-###################### INTERNAL COMMAND ######################'
+###################### INTERNAL COMMAND ######################' || {
+            >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not join peer to application channel. Exiting. ${C_RESET}"
+            exit 1
+        }
 
     done
 done
@@ -375,7 +387,10 @@ peer channel update \
     -f ${CONFIGTX_HOME}/peerOrganizations/'${ORG_NAME}'/'${ORG_NAME^}'MSPanchors.tx \
     --tls --cafile ${ORDERER_TLS_CA}  
 
-###################### INTERNAL COMMAND ######################'
+###################### INTERNAL COMMAND ######################' || {
+        >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not configure anchor peer. Exiting. ${C_RESET}"
+        exit 1
+    }
 
 done
 
@@ -403,6 +418,9 @@ discover \
     --MSP '${ORG_NAME^}'MSP \
     saveConfig
 
-###################### INTERNAL COMMAND ######################'
+###################### INTERNAL COMMAND ######################' || {
+        >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not configure discovery service. Exiting. ${C_RESET}"
+        exit 1
+    }
 
 done

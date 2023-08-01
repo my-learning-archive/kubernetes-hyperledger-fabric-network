@@ -98,17 +98,17 @@ TLS_CA_ADMIN_PASSWORD=${TLS_CA_ADMIN_PASSWORD}
 { set +x; } 2>/dev/null
 
 [[ -z ${ORG_NAME} || -z ${USER_TYPE} || -z ${USER_ROLE} || -z ${USER_USERNAME} || -z ${USER_PASSWORD} || -z ${USER_HOSTNAME} || -z ${ORG_CA_ADMIN_USERNAME} || -z ${ORG_CA_ADMIN_PASSWORD} || -z ${TLS_CA_ADMIN_USERNAME} || -z ${TLS_CA_ADMIN_PASSWORD} ]] && {
-    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} one or more mandatory arguments have not been provided!${C_RESET}"
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} One or more mandatory arguments have not been provided. Exiting. ${C_RESET}"
     exit 1   
 }
 
 [[ ${USER_TYPE} == 'client' || ${USER_TYPE} == 'admin' ]] || {
-    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} ${USER_TYPE} is an invalid user type - should be either 'client' or 'admin'!${C_RESET}"
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Invalid value for the --user-type flag - must be either 'client' or 'admin'. Exiting. ${C_RESET}"
     exit 1
 }
 
-kubectl get pod | grep ${ORG_NAME} &> /dev/null || {
-    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} ${ORG_NAME} does not exist!${C_RESET}"
+kubectl get deploy | grep -i peer0-${ORG_NAME} &> /dev/null || {
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Inexistent Hyperledger Fabric organization - ${ORG_NAME}. Exiting. ${C_RESET}"
     exit 1
 }
 
@@ -140,17 +140,17 @@ source create-crypto.sh \
     --org-ca-admin-password ${ORG_CA_ADMIN_PASSWORD} \
     --tls-ca-hostname ${KUBERNETES_TLS_CA_HOSTNAME} \
     --tls-ca-admin-username ${TLS_CA_ADMIN_USERNAME} \
-    --tls-ca-admin-password ${TLS_CA_ADMIN_PASSWORD}
+    --tls-ca-admin-password ${TLS_CA_ADMIN_PASSWORD} || exit 1
 
 createUser \
     --user-type ${USER_TYPE} \
     --user-role ${USER_ROLE} \
     --user-username ${USER_USERNAME} \
-    --user-password ${USER_PASSWORD} 
+    --user-password ${USER_PASSWORD} || exit 1
 
 createUserTLS \
     --user-type ${USER_TYPE} \
     --user-role ${USER_TOLE} \
     --user-hostname ${USER_HOSTNAME} \
     --user-username ${USER_USERNAME} \
-    --user-password ${USER_PASSWORD}
+    --user-password ${USER_PASSWORD} || exit 1

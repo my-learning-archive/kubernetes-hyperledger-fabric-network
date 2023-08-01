@@ -11,11 +11,11 @@ This repository is an experimental attempt at implementing an Hyperledger Fabric
 ---
 ## Before start:
 
-The easiest way to satisfy the requirement of a Kubernetes cluster is to setup a local Kubernetes cluster with Docker + Minikube. Once both Docker and Minikube are installed on the system / virtual machine, the following steps can be taken: 
+The easiest way to satisfy the requirement of a Kubernetes cluster is to setup a local Kubernetes cluster with Docker (v24.0.4) + Minikube (v1.30.1). Once both Docker and Minikube are installed on the system / virtual machine, the following steps can be taken: 
 
-1. Start minikube:
+1. Start minikube with three nodes:
 ```bash
-minikube start
+minikube start -n 3
 ```
 
 2. Create namespace ('hlf-network') and context:
@@ -27,18 +27,22 @@ kubectl config use-context my-context
 
 The easiest way to satisfy the requirement of an NFS server is to have a local container running one, to do this, the following steps should be taken:
 
-3. Enable the nfs and nfsd kernel modules, create a folder to be shared via NFS, and start a dockerized NFS server (locally):
+3. Enable the nfs and nfsd kernel modules:
 ```bash
 sudo modprobe nfs && sudo modprobe nfsd
+```
+
+4. Create a folder to be shared via NFS, and start a dockerized NFS server (locally)
+```bash
 mkdir -p ./nfs-storage
 docker run --name=nfs.server -itd --privileged=true --net=host -v ./nfs-storage:/nfs-storage -e NFS_EXPORT_0='/nfs-storage *(rw,no_root_squash)' erichough/nfs-server
 ```
 
 Since we are going to test the network using a version of the *marbles* chaincode, suitable for external chaincode building:
 
-4. Build the *marbles* chaincode docker image inside the Kubernetes cluster:
+5. Build the *marbles* chaincode docker image inside the Kubernetes cluster:
 ```bash
-minikube image build -t chaincode-marbles ./chaincodes/marbles/
+minikube image build --all -t chaincode-marbles ./chaincodes/marbles/
 ```
 
 ---
@@ -90,11 +94,11 @@ An HLF application channel can be created with the `create-channel.sh` script. T
 
 ```bash
 ./create-channel.sh \
- --channel-name new-channel
+ --channel-name new-channel \
  --orgs-list org1,org2
 ```
 
-### **How to deploy an Hyperledger Fabric chaincode:**
+### **How to deploy Hyperledger Fabric chaincodes:**
 
 An HLF chaincode can be deployed to an application channel with the `deploy-chaincode.sh` script. In Kubernetes, pods cannot create other pods within the cluster (and rightfully so, as that would be a severe security violatio), so chaincode is not installed directly in the peers, but in separate pods that are created ad-hoc - to do this, the image containing the code of the chaincode must be available within the Kubernetes cluster, and is specified with the `--chaincode-image` flag. For more information, execute `./deploy-chaincode.sh --help`.
 
@@ -104,7 +108,7 @@ An HLF chaincode can be deployed to an application channel with the `deploy-chai
  --chaincode-label marbles \
  --chaincode-version 1 \
  --channel-name base-channel \
- --channel-org-name org1 \
+ --channel-org-name org1
 ```
 
 ### **How to create Hyperledger Fabric organizations:**
@@ -122,7 +126,7 @@ An HLF organization can be created with the `create-org.sh` script. Optionally, 
  --channel-org-name org1
 ```
 
-### **How to join an existing Hyperledger Fabric organization to an existing application channel:**
+### **How to join existing Hyperledger Fabric organizations to existing application channels:**
 
 An existing HLF organization can be joined to an existing application channel with the `join-org-to-channel.sh` script. If the channel contains a previously committed chaincode, it will not be accessible to the newly joined organization right away, and must be redeployed, with an increased version number, for the newly joined organization to participate in its execution. In this scenario, the peers of the newly joined organization will replicate the world state of the previous version of the chaincode. For more information, execute `./join-org-to-channel.sh --help`.
 
@@ -156,7 +160,7 @@ There are myriads of ways to test HLF networks via the deployed chaincodes. In t
 kubectl exec -it $(kubectl get pods | awk '{print $1}' | grep ^cli) -- bash
 
 # test the marbles chaincode:
-peer chaincode invoke --channelID base-channel --name marbles --isInit -o orderer0-orderers:7050 --peerAddresses peer0-org1:7051 --tlsRootCertFiles /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/peers/peer0-org1/tls/ca.crt --peerAddresses peer1-org1:7051 --tlsRootCertFiles /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/peers/peer1-org1/tls/ca.crt --peerAddresses peer2-org1:7051 --tlsRootCertFiles /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/peers/peer2-org1/tls/ca.crt --peerAddresses peer0-org2:7051 --tlsRootCertFiles /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2/peers/peer0-org2/tls/ca.crt --peerAddresses peer1-org2:7051 --tlsRootCertFiles /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2/peers/peer1-org2/tls/ca.crt --tls --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/orderers/orderers/orderer0-orderers/tls/ca.crt -c '{"Args":["initMarble","marble1","blue","35","tom"]}' --waitForEvent
+peer chaincode invoke --channelID base-channel --name marbles -o orderer0-orderers:7050 --peerAddresses peer0-org1:7051 --tlsRootCertFiles /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/peers/peer0-org1/tls/ca.crt --peerAddresses peer1-org1:7051 --tlsRootCertFiles /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/peers/peer1-org1/tls/ca.crt --peerAddresses peer2-org1:7051 --tlsRootCertFiles /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/peers/peer2-org1/tls/ca.crt --peerAddresses peer0-org2:7051 --tlsRootCertFiles /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2/peers/peer0-org2/tls/ca.crt --peerAddresses peer1-org2:7051 --tlsRootCertFiles /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2/peers/peer1-org2/tls/ca.crt --tls --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/orderers/orderers/orderer0-orderers/tls/ca.crt -c '{"Args":["initMarble","marble1","blue","35","tom"]}' --waitForEvent
 ```
 
 ---
@@ -165,4 +169,5 @@ peer chaincode invoke --channelID base-channel --name marbles --isInit -o ordere
 - Migrate what should be implemented as k8s *Secrets* to that format.
 - ~~Right now, because of the service and directory conventions, there can't be two chaincodes with different names in the same channel, fix this...~~
 - ~~./create-org.sh - new orgs joining channel stilll can't use chaincode (... has not yet been approved by this org)~~ After an org is added to the channel, it is required to run the deploy-chaincode.sh script again, for the same chaincode, but with increased version number.
-- error checking after every single kubectl exec command.
+- ~~error checking after every single kubectl exec command.~~
+- deploy-chaincode.sh: Find cloud native alternative to pass collection-config onto the k8s cluster.

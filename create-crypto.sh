@@ -79,7 +79,7 @@ TLS_CA_ADMIN_PASSWORD=${TLS_CA_ADMIN_PASSWORD}
 { set +x; } 2>/dev/null
 
 [[ -z ${ORG_NAME} || -z ${ORG_CA_HOSTNAME} || -z ${ORG_CA_ADMIN_USERNAME} || -z ${ORG_CA_ADMIN_PASSWORD} || -z ${TLS_CA_HOSTNAME} || -z ${TLS_CA_ADMIN_USERNAME} || -z ${TLS_CA_ADMIN_PASSWORD} ]] && {
-    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} one or more mandatory arguments have not been provided!${C_RESET}"
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} One or more mandatory arguments have not been provided. Exiting. ${C_RESET}"
     exit 1   
 }
 
@@ -142,13 +142,15 @@ for i in {1..10}; do
         break
     fi
     if [ $i -eq 10 ]; then
-        >&2 echo -e "'${C_RED_BOLD}'ERROR:'${C_RED}' '${ORG_CA_HOSTNAME}' could not be reached!'${C_RESET}'"
         exit 1
     fi
     sleep 10
 done
 
-###################### INTERNAL COMMAND ######################'
+###################### INTERNAL COMMAND ######################' || {
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not enroll organizational CA admin. Exiting. ${C_RESET}"
+    exit 1
+}
 
 echo -e "${C_BLUE}\nEnrolling TLS CA admin ...${C_RESET}"
 
@@ -169,13 +171,15 @@ for i in {1..10}; do
         break
     fi
     if [ $i -eq 10 ]; then
-        >&2 echo -e "'${C_RED_BOLD}'ERROR:'${C_RED}' '${ORG_CA_HOSTNAME}' could not be reached!'${C_RESET}'"
         exit 1
     fi
     sleep 10
 done
 
-###################### INTERNAL COMMAND ######################'
+###################### INTERNAL COMMAND ######################' || {
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not enroll TLS CA admin. Exiting. ${C_RESET}"
+    exit 1
+}
 
 
 
@@ -213,13 +217,13 @@ NodeOUs:
     createUser \
         --user-type admin \
         --user-username ${ORG_NAME}admin \
-        --user-password ${ORG_NAME}adminpw
+        --user-password ${ORG_NAME}adminpw || exit 1
     
     createUserTLS \
         --user-type admin \
         --user-hostname host.minikube.internal \
         --user-username ${ORG_NAME}admin \
-        --user-password ${ORG_NAME}adminpw
+        --user-password ${ORG_NAME}adminpw || exit 1
 }
 
 
@@ -293,7 +297,10 @@ fabric-ca-client register \
     --id.type '${USER_TYPE}' ${USER_ROLE_FLAG} \
     --tls.certfiles ${CRYPTO_HOME}/'${ORG_CA_TLS_CERTIFICATE}'
 
-###################### INTERNAL COMMAND ######################'
+###################### INTERNAL COMMAND ######################' || {
+        >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not register user. Exiting. ${C_RESET}"
+        exit 1
+    }
 
     echo -e "${C_BLUE}\nGenerating MSP: ${USER_USERNAME}@${ORG_NAME} ...${C_RESET}"
 
@@ -311,7 +318,10 @@ fabric-ca-client enroll \
 rm $(ls -t ${CRYPTO_HOME}/'${USER_MSP_PATH}'/keystore/* | tail -n +2) &> /dev/null
 cp ${CRYPTO_HOME}/'${ORG_CRYPTO_MATERIAL_TARGET}'/msp/config.yaml ${CRYPTO_HOME}/'${USER_MSP_PATH}'/config.yaml
 
-###################### INTERNAL COMMAND ######################'
+###################### INTERNAL COMMAND ######################' || {
+        >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not generate user credentials. Exiting. ${C_RESET}"
+        exit 1
+    }
 }
 
 
@@ -390,7 +400,10 @@ fabric-ca-client register \
     --id.type '${USER_TYPE}' ${USER_ROLE_FLAG} \
     --tls.certfiles ${CRYPTO_HOME}/'${TLS_CA_TLS_CERTIFICATE}'
 
-###################### INTERNAL COMMAND ######################'
+###################### INTERNAL COMMAND ######################' || {
+        >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not register user. Exiting. ${C_RESET}"
+        exit 1
+    }
 
     echo -e "${C_BLUE}\nGenerating TLS: ${USER_USERNAME}@${ORG_NAME} ...${C_RESET}"
 
@@ -412,7 +425,10 @@ cp ${CRYPTO_HOME}/'${USER_TLS_PATH}'/tlscacerts/* ${CRYPTO_HOME}/'${USER_TLS_PAT
 cp ${CRYPTO_HOME}/'${USER_TLS_PATH}'/signcerts/* ${CRYPTO_HOME}/'${USER_TLS_PATH}'/client.crt
 cp ${CRYPTO_HOME}/'${USER_TLS_PATH}'/keystore/* ${CRYPTO_HOME}/'${USER_TLS_PATH}'/client.key
 
-###################### INTERNAL COMMAND ######################'
+###################### INTERNAL COMMAND ######################' || {
+        >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not generate user credentials. Exiting. ${C_RESET}"
+        exit 1
+    }
 }
 
 
@@ -475,7 +491,10 @@ fabric-ca-client register \
     --id.type '${ENTITY_TYPE}' \
     --tls.certfiles ${CRYPTO_HOME}/'${ORG_CA_TLS_CERTIFICATE}'
 
-###################### INTERNAL COMMAND ######################'
+###################### INTERNAL COMMAND ######################' || {
+        >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not register entity. Exiting. ${C_RESET}"
+        exit 1
+    }
 
     echo -e "${C_BLUE}\nGenerating MSP: ${ENTITY_NAME}-${ORG_NAME} ...${C_RESET}"
 
@@ -494,7 +513,10 @@ fabric-ca-client enroll \
 rm $(ls -t ${CRYPTO_HOME}/'${ENTITY_MSP_PATH}'/keystore/* | tail -n +2) &> /dev/null
 cp ${CRYPTO_HOME}/'${ORG_CRYPTO_MATERIAL_TARGET}'/msp/config.yaml ${CRYPTO_HOME}/'${ENTITY_MSP_PATH}'/config.yaml
 
-###################### INTERNAL COMMAND ######################'
+###################### INTERNAL COMMAND ######################' || {
+        >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not generate entity credentials. Exiting. ${C_RESET}"
+        exit 1
+    }
 }
 
 
@@ -557,7 +579,10 @@ fabric-ca-client register \
     --id.type '${ENTITY_TYPE}' \
     --tls.certfiles ${CRYPTO_HOME}/'${TLS_CA_TLS_CERTIFICATE}'
 
-###################### INTERNAL COMMAND ######################'
+###################### INTERNAL COMMAND ######################' || {
+        >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not register entity. Exiting. ${C_RESET}"
+        exit 1
+    }
 
     echo -e "${C_BLUE}\nGenerating TLS: ${ENTITY_NAME}-${ORG_NAME} ...${C_RESET}"
 
@@ -583,5 +608,8 @@ cp ${CRYPTO_HOME}/'${ENTITY_TLS_PATH}'/keystore/* ${CRYPTO_HOME}/'${ENTITY_TLS_P
 mkdir -p ${CRYPTO_HOME}/'${ORG_CRYPTO_MATERIAL_TARGET}'/msp/tlscacerts
 cp ${CRYPTO_HOME}/'${ENTITY_TLS_PATH}'/tlscacerts/* ${CRYPTO_HOME}/'${ORG_CRYPTO_MATERIAL_TARGET}'/msp/tlscacerts/ca.crt
 
-###################### INTERNAL COMMAND ######################'
+###################### INTERNAL COMMAND ######################' || {
+        >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not generate entity credentials. Exiting. ${C_RESET}"
+        exit 1
+    }
 }

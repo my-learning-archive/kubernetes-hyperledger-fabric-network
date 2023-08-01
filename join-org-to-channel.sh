@@ -59,9 +59,14 @@ CHANNEL_ORG_NAME=${CHANNEL_ORG_NAME}
     exit 1   
 }
 
+kubectl get deploy | grep -i peer0-${ORG_NAME} &> /dev/null || {
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Inexistent Hyperledger Fabric organization - ${ORG_NAME}. Exiting. ${C_RESET}"
+    exit 1
+}
+
 [[ ${CHANNEL_NAME} == "NA" ]] || {
     [[ ${CHANNEL_ORG_NAME} == "NA" ]] && {
-        >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} you did not provide an organization that is part of the ${CHANNEL_NAME} channel!${C_RESET}"
+        >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} An Hyperledger Fabric organization belonging to the specified application channel has not been provided. Exiting. ${C_RESET}"
         exit 1
     }
 }
@@ -79,23 +84,6 @@ KUBERNETES_CLI_HOSTNAME=${ENV_KUBERNETES_CLI_HOSTNAME}
 KUBERNETES_CLI_POD_NAME=$(kubectl get pods | grep ^${KUBERNETES_CLI_HOSTNAME}-* | awk '{print $1}')
 
 PEERS_LIST=$(kubectl get services | awk '{print $1}' | grep ^peer | grep ${ORG_NAME} | sort)
-
-CHANNEL_CHAINCODES_LIST=$(kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
-###################### INTERNAL COMMAND ######################
-
-export CORE_PEER_LOCALMSPID='${CHANNEL_ORG_NAME^}'MSP
-export CORE_PEER_ADDRESS=peer0-'${CHANNEL_ORG_NAME}':7051
-export CORE_PEER_MSPCONFIGPATH=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/users/'${CHANNEL_ORG_NAME}'admin@'${CHANNEL_ORG_NAME}'/msp
-export CORE_PEER_TLS_CERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/server.crt
-export CORE_PEER_TLS_KEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/server.key
-export CORE_PEER_TLS_ROOTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/ca.crt
-export CORE_PEER_TLS_CLIENTROOTCAS_FILES=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/server.crt
-export CORE_PEER_TLS_CLIENTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/server.key
-export CORE_PEER_TLS_CLIENTKEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/ca.crt
-
-peer lifecycle chaincode querycommitted --channelID '${CHANNEL_NAME}' | tail -n +2 | tr -d "," | awk '"'"'{print $2}'"'"'
-
-###################### INTERNAL COMMAND ######################' | sed 's/\r$//' | sort)
 
 
 
@@ -204,7 +192,10 @@ peer channel update \
 	-f ${SUBMIT_READY_PB} \
 	--tls --cafile ${ORDERER_TLS_CA}
 
-###################### INTERNAL COMMAND ######################'
+###################### INTERNAL COMMAND ######################' || {
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not join organization to the application channel. Exiting. ${C_RESET}"
+    exit 1
+}
 
 
 
@@ -216,6 +207,8 @@ peer channel update \
 printf "${C_BLUE_BOLD}\njoin-org-to-channel.sh:${C_BLUE}\n > JOINING PEERS TO APPLICATION CHANNEL\n\n${C_RESET}"
 
 for PEER_HOSTNAME in ${PEERS_LIST}; do
+
+    echo -e "${C_BLUE}\nJoining ${PEER_HOSTNAME} ...${C_RESET}"
 
     kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
 ###################### INTERNAL COMMAND ######################
@@ -229,8 +222,6 @@ export CORE_PEER_TLS_ROOTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}
 export CORE_PEER_TLS_CLIENTROOTCAS_FILES=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/server.crt
 export CORE_PEER_TLS_CLIENTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/server.key
 export CORE_PEER_TLS_CLIENTKEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/peers/'${PEER_HOSTNAME}'/tls/ca.crt
-
-echo -e "'${C_BLUE}'\nJoining '${PEER_HOSTNAME}' peer to application channel ...'${C_RESET}'"
 
 peer channel fetch oldest ${CONFIGTX_HOME}/applicationChannels/'${CHANNEL_NAME}'/'${CHANNEL_NAME}'.block \
     -o ${ORDERER_ENDPOINT} \
@@ -246,12 +237,14 @@ for i in {1..10}; do
         break
     fi
     if [ $i -eq 10 ]; then
-        >&2 echo -e "'${C_RED_BOLD}'ERROR:'${C_RED}' '${PEER_HOSTNAME}' could not join peer to application channel!'${C_RESET}'"
         exit 1
     fi
     sleep 10
 done
 
-###################### INTERNAL COMMAND ######################'
+###################### INTERNAL COMMAND ######################' || {
+        >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not join peer to application channel. Exiting. ${C_RESET}"
+        exit 1
+    }
 
 done

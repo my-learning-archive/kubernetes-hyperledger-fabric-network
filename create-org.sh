@@ -104,13 +104,13 @@ CHANNEL_ORG_NAME=${CHANNEL_ORG_NAME:-"NA"}
 { set +x; } 2>/dev/null
 
 [[ -z ${ORG_NAME} || -z ${ORG_CA_ADMIN_USERNAME} || -z ${ORG_CA_ADMIN_PASSWORD} || -z ${TLS_CA_ADMIN_USERNAME} || -z ${TLS_CA_ADMIN_PASSWORD} || -z ${PEER_USERNAME} || -z ${PEER_PASSWORD} || -z ${COUCHDB_USERNAME} || -z ${COUCHDB_PASSWORD} || -z ${CHANNEL_NAME} || -z ${CHANNEL_ORG_NAME} ]] && {
-    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} one or more mandatory arguments have not been provided!${C_RESET}"
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} One or more mandatory arguments have not been provided. Exiting. ${C_RESET}"
     exit 1   
 }
 
 [[ ${CHANNEL_NAME} == "NA" ]] || {
     [[ ${CHANNEL_ORG_NAME} == "NA" ]] && {
-        >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} you did not provide an organization that is part of the ${CHANNEL_NAME} channel!${C_RESET}"
+        >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} An Hyperledger Fabric organization belonging to the specified application channel has not been provided. Exiting. ${C_RESET}"
         exit 1
     }
 }
@@ -217,8 +217,7 @@ done
 sleep 10
 
 # are all services are running?
-kubectl get pods | awk '{print $3}' | tail -n +2 | awk '!seen[$0]++ && NR>1{exit 1}'
-[[ ! $? -eq 0 ]] && {
+[[ $(kubectl get pods | awk '{print $3}' | tail -n +2 | uniq) != "Running" ]] && {
     >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} One or more containers did not start. Exiting. ${C_RESET}"
     exit 1
 }
@@ -232,19 +231,19 @@ source create-crypto.sh \
     --org-ca-admin-password ${ORG_CA_ADMIN_PASSWORD} \
     --tls-ca-hostname ${KUBERNETES_TLS_CA_HOSTNAME} \
     --tls-ca-admin-username ${TLS_CA_ADMIN_USERNAME} \
-    --tls-ca-admin-password ${TLS_CA_ADMIN_PASSWORD}
+    --tls-ca-admin-password ${TLS_CA_ADMIN_PASSWORD} || exit 1
 
-createOrg
+createOrg || exit 1
 
 createEntity \
     --entity-name peer0 \
     --entity-username ${PEER_USERNAME} \
-    --entity-password ${PEER_PASSWORD}
+    --entity-password ${PEER_PASSWORD} || exit 1
 
 createEntityTLS \
     --entity-name peer0 \
     --entity-username ${PEER_USERNAME} \
-    --entity-password ${PEER_PASSWORD}
+    --entity-password ${PEER_PASSWORD} || exit 1
 
 
 
@@ -288,7 +287,10 @@ configtxgen \
 	-configPath ${CONFIGTX_HOME}/peerOrganizations/'${ORG_NAME}'/ \
 	-printOrg '${ORG_NAME^}'MSP > ${CONFIGTX_HOME}/peerOrganizations/'${ORG_NAME}'/'${ORG_NAME}'-definition.json
 
-###################### INTERNAL COMMAND ######################'
+###################### INTERNAL COMMAND ######################' || {
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not generate organization definitions. Exiting. ${C_RESET}"
+    exit 1
+}
 
 
 
@@ -452,8 +454,7 @@ done
 sleep 10
 
 # are all services are running?
-kubectl get pods | awk '{print $3}' | tail -n +2 | awk '!seen[$0]++ && NR>1{exit 1}'
-[[ ! $? -eq 0 ]] && {
+[[ $(kubectl get pods | awk '{print $3}' | tail -n +2 | uniq) != "Running" ]] && {
     >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} One or more containers did not start. Exiting. ${C_RESET}"
     exit 1
 }
@@ -536,7 +537,10 @@ peer channel update \
 	-f ${SUBMIT_READY_PB} \
 	--tls --cafile ${ORDERER_TLS_CA}
 
-###################### INTERNAL COMMAND ######################'
+###################### INTERNAL COMMAND ######################' || {
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not join organization to the system channel. Exiting. ${C_RESET}"
+    exit 1
+}
 
 
 
@@ -552,7 +556,7 @@ peer channel update \
 	source join-org-to-channel.sh \
 		--org-name ${ORG_NAME} \
 		--channel-name ${CHANNEL_NAME} \
-		--channel-org-name ${CHANNEL_ORG_NAME}
+		--channel-org-name ${CHANNEL_ORG_NAME} || exit 1
 }
 
 
@@ -576,4 +580,7 @@ discover \
 	--userCert ${CRYPTO_HOME}/peerOrganizations/'${ORG_NAME}'/users/'${ORG_NAME}'admin@'${ORG_NAME}'/msp/signcerts/cert.pem \
 	--MSP '${ORG_NAME^}'MSP saveConfig
 
-###################### INTERNAL COMMAND ######################'
+###################### INTERNAL COMMAND ######################' || {
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not configure discovery service. Exiting. ${C_RESET}"
+    exit 1
+}

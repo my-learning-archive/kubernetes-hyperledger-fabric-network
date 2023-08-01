@@ -86,13 +86,20 @@ INIT_REQUIRED=${INIT_REQUIRED:-false}
 { set +x; } 2>/dev/null
 
 [[ -z ${CHAINCODE_IMAGE} || -z ${CHAINCODE_LABEL} || -z ${CHAINCODE_VERSION} || -z ${CHANNEL_NAME} || -z ${CHANNEL_ORG_NAME} || -z ${COLLECTIONS_CONFIG} || -z ${SIGNATURE_POLICY} || -z ${INIT_REQUIRED} ]] && {
-    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} one or more mandatory arguments have not been provided!${C_RESET}"
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} One or more mandatory arguments have not been provided. Exiting. ${C_RESET}"
     exit 1   
 }
 
 [[ ${INIT_REQUIRED} == true || ${INIT_REQUIRED} == false ]] || {
-    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} The value of the --init-required flag must be either 'true' or 'false'!${C_RESET}"
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Invalid value for the --init-required flag - must be either 'true' or 'false'. Exiting. ${C_RESET}"
     exit 1    
+}
+
+[[ ${CHANNEL_NAME} == "NA" ]] || {
+    [[ ${CHANNEL_ORG_NAME} == "NA" ]] && {
+        >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} An Hyperledger Fabric organization belonging to the specified application channel has not been provided. Exiting. ${C_RESET}"
+        exit 1
+    }
 }
 
 
@@ -117,7 +124,7 @@ for ORG_NAME in ${CHANNEL_ORGS_LIST}; do
 done
 
 [[ ${PEERS_LIST} == "" ]] && {
-    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} could not get the list of peers in the ${CHANNEL_NAME} channel - check if ${CHANNEL_NAME} exists or if ${CHANNEL_ORG_NAME} belongs to it!${C_RESET}"
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not get the list of peers in the ${CHANNEL_NAME} channel - either ${CHANNEL_NAME} does not exist or ${CHANNEL_ORG_NAME} does not belong to it. Exiting. ${C_RESET}"
     exit 1  
 }
 
@@ -188,7 +195,10 @@ tar cfz '${CHAINCODE_LABEL}'-'${ORG_NAME}'.tgz code.tar.gz metadata.json
 rm -rvf connection.json code.tar.gz metadata.json &> /dev/null
 ls ${CONFIGTX_HOME}/applicationChannels/'${CHANNEL_NAME}'/chaincodes/'${CHAINCODE_LABEL}'/'${CHAINCODE_LABEL}'-'${ORG_NAME}'.tgz
 
-###################### INTERNAL COMMAND ######################'
+###################### INTERNAL COMMAND ######################' || {
+        >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not package chaincode. Exiting. ${C_RESET}"
+        exit 1
+    }
 
 done
 
@@ -222,7 +232,10 @@ export CORE_PEER_TLS_CLIENTROOTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${ORG
 
 peer lifecycle chaincode install ${CONFIGTX_HOME}/applicationChannels/'${CHANNEL_NAME}'/chaincodes/'${CHAINCODE_LABEL}'/'${CHAINCODE_LABEL}'-'${ORG_NAME}'.tgz
 
-###################### INTERNAL COMMAND ######################'
+###################### INTERNAL COMMAND ######################' || {
+        >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not install chaincode. Exiting. ${C_RESET}"
+        exit 1
+    }
 
 done
 
@@ -298,8 +311,7 @@ done
 sleep 10
 
 # are all services are running?
-kubectl get pods | awk '{print $3}' | tail -n +2 | awk '!seen[$0]++ && NR>1{exit 1}'
-[[ ! $? -eq 0 ]] && {
+[[ $(kubectl get pods | awk '{print $3}' | tail -n +2 | uniq) != "Running" ]] && {
     >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} One or more containers did not start. Exiting. ${C_RESET}"
     exit 1
 } 
@@ -347,7 +359,10 @@ peer lifecycle chaincode approveformyorg \
     '${INIT_REQUIRED_FLAG}' \
     --tls --cafile ${ORDERER_TLS_CA}
 
-###################### INTERNAL COMMAND ######################'
+###################### INTERNAL COMMAND ######################' || {
+        >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not approve chaincode. Exiting. ${C_RESET}"
+        exit 1
+    }
 
 done
 
@@ -391,4 +406,7 @@ peer lifecycle chaincode commit \
     ${PEER_PARAMETERS} \
     --tls --cafile ${ORDERER_TLS_CA}
 
-###################### INTERNAL COMMAND ######################'
+###################### INTERNAL COMMAND ######################' || {
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not commit chaincode. Exiting. ${C_RESET}"
+    exit 1
+}

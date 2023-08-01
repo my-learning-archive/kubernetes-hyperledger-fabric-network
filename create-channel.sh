@@ -49,13 +49,13 @@ ORGS_LIST=${ORGS_LIST}
 { set +x; } 2>/dev/null
 
 [[ -z ${CHANNEL_NAME} || -z ${ORGS_LIST} ]] && {
-    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} one or more mandatory arguments have not been provided!${C_RESET}"
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} One or more mandatory arguments have not been provided. Exiting. ${C_RESET}"
     exit 1   
 }
 
 for ORG_NAME in ${ORGS_LIST//,/ }; do
-    kubectl get deploy | grep -i ${ORG_NAME} &> /dev/null || {
-        >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} ${ORG_NAME} does not exist!${C_RESET}"
+    kubectl get deploy | grep -i peer0-${ORG_NAME} &> /dev/null || {
+        >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Inexistent Hyperledger Fabric organization - ${ORG_NAME}. Exiting. ${C_RESET}"
         exit 1
     }
 done
@@ -255,7 +255,10 @@ cat << EOF >> ${CONFIGTX_HOME}/applicationChannels/'${CHANNEL_NAME}'/configtx.ya
                 <<: *ApplicationCapabilities
 EOF
 
-###################### INTERNAL COMMAND ######################'
+###################### INTERNAL COMMAND ######################' || {
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not create configuration file. Exiting. ${C_RESET}"
+    exit 1
+}
 
 
 
@@ -275,7 +278,10 @@ configtxgen \
     -channelID '${CHANNEL_NAME}' \
     -outputCreateChannelTx ${CONFIGTX_HOME}/applicationChannels/'${CHANNEL_NAME}'/'${CHANNEL_NAME}'.tx
 
-###################### INTERNAL COMMAND ######################'
+###################### INTERNAL COMMAND ######################' || {
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not generate application channel creation transaction. Exiting. ${C_RESET}"
+    exit 1
+}
 
 
 
@@ -307,7 +313,10 @@ peer channel create \
     -f ${CONFIGTX_HOME}/applicationChannels/'${CHANNEL_NAME}'/'${CHANNEL_NAME}'.tx \
     --tls --cafile ${ORDERER_TLS_CA}
 
-###################### INTERNAL COMMAND ######################'
+###################### INTERNAL COMMAND ######################' || {
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not create application channel. Exiting. ${C_RESET}"
+    exit 1
+}
 
 
 
@@ -347,7 +356,10 @@ peer channel fetch oldest '${CHANNEL_NAME}'.block \
 peer channel join \
     -b '${CHANNEL_NAME}'.block
 
-###################### INTERNAL COMMAND ######################'
+###################### INTERNAL COMMAND ######################' || {
+            >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} Could not join peer to application channel. Exiting. ${C_RESET}"
+            exit 1
+        }
 
     done
 done
