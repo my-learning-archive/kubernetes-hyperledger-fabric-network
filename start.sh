@@ -57,6 +57,7 @@ kubectl wait pods --all --for=condition=Ready --timeout=600s || {
 
 
 
+
 ############################################################## 
 # GENERATING CRYPTO-MATERIALS - BASE ORGS
 ##############################################################
