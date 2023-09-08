@@ -50,18 +50,10 @@ kubectl apply -f ${SCRIPT}/kubernetes-manifests/base/ca-cli.yaml
 # cli
 kubectl apply -f ${SCRIPT}/kubernetes-manifests/base/cli.yaml
 
-# wait for all containers to start
-while kubectl get pods | grep 'ContainerCreating'; do
-    sleep 10
-done
-sleep 10
-
-# are all services are running?
-[[ $(kubectl get pods | awk '{print $3}' | tail -n +2 | uniq) != "Running" ]] && {
+kubectl wait pods --all --for=condition=Ready --timeout=600s || {
     >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} One or more containers did not start. Exiting. ${C_RESET}"
     exit 1
-} 
-
+}
 
 
 
@@ -264,14 +256,7 @@ kubectl apply -f ${SCRIPT}/kubernetes-manifests/base/org1/peer1-org1.yaml
 kubectl apply -f ${SCRIPT}/kubernetes-manifests/base/org2/peer0-org2.yaml
 kubectl apply -f ${SCRIPT}/kubernetes-manifests/base/org2/peer1-org2.yaml
 
-# wait for all containers to start
-while kubectl get pods | grep 'ContainerCreating'; do
-    sleep 10
-done
-sleep 10
-
-# are all services are running?
-[[ $(kubectl get pods | awk '{print $3}' | tail -n +2 | uniq) != "Running" ]] && {
+kubectl wait pods --all --for=condition=Ready --timeout=600s || {
     >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} One or more containers did not start. Exiting. ${C_RESET}"
     exit 1
 } 

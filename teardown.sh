@@ -57,6 +57,8 @@ kubectl delete -f ${SCRIPT}/kubernetes-manifests/base/configtx.yaml
 # NFS Volumes
 kubectl delete -f ${SCRIPT}/kubernetes-manifests/external/nfs-volumes.yaml
 
+kubectl wait --for=delete pods --all --timeout=60s
+
 
 
 
