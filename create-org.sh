@@ -213,7 +213,7 @@ kubectl apply -f ${SCRIPT}/kubernetes-manifests/expand/${ORG_NAME}/ca-${ORG_NAME
 kubectl wait pods --all --for=condition=Ready --timeout=600s || {
     >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} One or more containers did not start. Exiting. ${C_RESET}"
     exit 1
-} 
+}
 
 KUBERNETES_ORG_CA_HOSTNAME=ca-${ORG_NAME}
 
@@ -307,7 +307,6 @@ spec:
     - name: tcp-7051
       port: 7051
       protocol: TCP
-  type: NodePort
 
 ---
 
@@ -441,7 +440,7 @@ kubectl apply -f ${SCRIPT}/kubernetes-manifests/expand/${ORG_NAME}/peer0-${ORG_N
 kubectl wait pods --all --for=condition=Ready --timeout=600s || {
     >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} One or more containers did not start. Exiting. ${C_RESET}"
     exit 1
-} 
+}
 
 
 

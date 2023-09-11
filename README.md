@@ -7,13 +7,16 @@ This repository is an experimental attempt at implementing an Hyperledger Fabric
 - A Kubernetes cluster
 - A NFS server
 
+*Note: This repository is purely experimental, with the purpose of learning how Hyperledger Fabric and Kubernetes interact with one another, it is not suitable for a real deployment, as it may have various negative security-related implications.*
+
+A detailed setup guide is available [**here**](./documentation/setup.md).
 
 ---
 ## Before start:
 
 The easiest way to satisfy the requirement of a Kubernetes cluster is to setup a local Kubernetes cluster with Docker (v24.0.4) + Minikube (v1.30.1). Once both Docker and Minikube are installed on the system / virtual machine, the following steps can be taken: 
 
-1. Start minikube with three nodes:
+1. Start a minikube cluster with three nodes:
 ```bash
 minikube start -n 3
 ```
@@ -25,7 +28,7 @@ kubectl config set-context my-context --cluster='minikube' --namespace='hlf-netw
 kubectl config use-context my-context
 ```
 
-The easiest way to satisfy the requirement of an NFS server is to have a local container running one, to do this, the following steps should be taken:
+The easiest way to satisfy the requirement of an NFS server is to have a local container running one. To achieve this, the following steps should be taken:
 
 3. Enable the nfs and nfsd kernel modules:
 ```bash
@@ -38,6 +41,8 @@ mkdir -p ./nfs-storage
 docker run --name=nfs.server -itd --privileged=true --net=host -v ./nfs-storage:/nfs-storage -e NFS_EXPORT_0='/nfs-storage *(rw,no_root_squash)' erichough/nfs-server
 ```
 
+*Note: this a priviledged docker container. This is not recommended, as it has negative security implications. Remember, this is purely an experimental/testing environment.*
+
 Since we are going to test the network using a version of the *marbles* chaincode, suitable for external chaincode building:
 
 5. Build the *marbles* chaincode docker image inside the Kubernetes cluster:
@@ -46,7 +51,7 @@ minikube image build --all -t chaincode-marbles ./chaincodes/marbles/
 ```
 
 ---
-## Setup:
+## Setup Hyperledger Fabric:
 
 This is a guide on how to use each script to generate/manage a dynamic HLF network.
 
@@ -100,11 +105,10 @@ An HLF application channel can be created with the `create-channel.sh` script. T
 
 ### **How to deploy Hyperledger Fabric chaincodes:**
 
-An HLF chaincode can be deployed to an application channel with the `deploy-chaincode.sh` script. In Kubernetes, pods cannot create other pods within the cluster (and rightfully so, as that would be a severe security violatio), so chaincode is not installed directly in the peers, but in separate pods that are created ad-hoc - to do this, the image containing the code of the chaincode must be available within the Kubernetes cluster, and is specified with the `--chaincode-image` flag. For more information, execute `./deploy-chaincode.sh --help`.
+An HLF chaincode can be deployed to an application channel with the `deploy-chaincode.sh` script. In Kubernetes, pods cannot create other pods within the cluster (and rightfully so, as that would be a security violation akin to a VM accessing its host), so chaincode is not installed directly in the peers, but in separate pods that are created ad-hoc - to do this, the image containing the code of the chaincode must be available within the Kubernetes cluster, and it must follow the following naming convention: "chaincode-${chaincode-label}". For more information, execute `./deploy-chaincode.sh --help`.
 
 ```bash
 ./deploy-chaincode.sh \
- --chaincode-image chaincode-marbles \
  --chaincode-label marbles \
  --channel-name base-channel \
  --channel-org-name org1
@@ -112,7 +116,7 @@ An HLF chaincode can be deployed to an application channel with the `deploy-chai
 
 ### **How to create Hyperledger Fabric organizations:**
 
-An HLF organization can be created with the `create-org.sh` script. Optionally, the `--channel-name` and `--channel-org-name` flags specify that this newly created organization should be added to an application channel. For this end, internally, the `create.org.sh` script calls the `join-org-to-channel.sh` script (as described in the next section). For more information, execute `./create-org.sh --help`.
+An HLF organization can be created with the `create-org.sh` script. Optionally, the `--channel-name` and `--channel-org-name` flags specify that this newly created organization should be added to an application channel, right away. For this end, internally, the `create-org.sh` script calls the `join-org-to-channel.sh` script (as described in the next section). For more information, execute `./create-org.sh --help`.
 
 ```bash
 ./create-org.sh \
@@ -138,7 +142,7 @@ An existing HLF organization can be joined to an existing application channel wi
 
 ### **How to create Hyperledger Fabric peers:**
 
-A HLF peer can be created with the `create-peer.sh` script. This script joins the newly created peer to all application channels its organization belongs to, and installs the resident chaincodes. Therefore, the newly created peer is immediately apt to participate in the execution of the chaincodes its organization has access to. FOr more information, execute `./create-peer.sh --help`. For convention, the newly created peer is not named, but numbered, according to the logic sequence - in the following case, considering *org1* already has *peer0-org1* and *peer1-org2*, the hostname of the newly created peer will be, automatically, *peer2-org1*.
+A HLF peer can be created with the `create-peer.sh` script. This script joins the newly created peer to all application channels its organization belongs to, and installs the resident chaincodes. Therefore, the newly created peer is immediately apt to participate in the execution of the chaincodes its organization has access to. For convention, the newly created peer is not named, but numbered, according to the logic sequence - in the following case, considering *org1* already has *peer0-org1* and *peer1-org1*, the hostname of the newly created peer will be, automatically, *peer2-org1*. For more information, execute `./create-peer.sh --help`. 
 
 ```bash
 ./create-peer.sh \
@@ -162,7 +166,7 @@ Lastly, all of the above commands are concatenated in a single command, for conv
 
 ./create-channel.sh --channel-name new-channel --orgs-list org1,org2 && \
 
-./deploy-chaincode.sh --chaincode-image chaincode-marbles --chaincode-label marbles --channel-name base-channel --channel-org-name org1 && \
+./deploy-chaincode.sh --chaincode-label marbles --channel-name base-channel --channel-org-name org1 && \
 
 ./create-org.sh --org-name org3 --org-ca-admin-username admin --org-ca-admin-password adminpw --tls-ca-admin-username tls-admin --tls-ca-admin-password tls-adminpw --channel-name base-channel --channel-org-name org1 && \
 
@@ -174,7 +178,7 @@ Lastly, all of the above commands are concatenated in a single command, for conv
 ---
 ## Testing:
 
-There are myriads of ways to test HLF networks via the deployed chaincodes. In the previously described set up, the easiest way is to execute a shell in the *fabric-tools* cli pod, and to invoke a deployed chaincode. As a result of the previous sequence of script executions, we can, for instance, invoke the *marbles* chaincode, with participation of *peer0*, *peer1* and *peer2* of *org1*, and *peer0* and *peer1* of *org2*:
+There are myriads of ways to test HLF networks via deployed chaincodes. In the previously described set up, the easiest way is to execute a shell in the *fabric-tools* cli pod, and to invoke a deployed chaincode. As a result of the previous sequence of script executions, we can, for instance, invoke the *marbles* chaincode, with participation of *peer0*, *peer1* and *peer2* of *org1*, and *peer0* and *peer1* of *org2*:
 
 ```bash
 # log inside cli pod:

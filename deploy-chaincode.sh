@@ -10,7 +10,7 @@ SCRIPT=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 # INPUT VARIABLES
 ##############################################################
 
-VALID_ARGS=$(getopt -o h\0 --long help,chaincode-image:,chaincode-label:,channel-name:,channel-org-name:,collections-config:,signature-policy:,init-required: -- "$@")
+VALID_ARGS=$(getopt -o h\0 --long help,chaincode-label:,channel-name:,channel-org-name:,collections-config:,signature-policy:,init-required: -- "$@")
 if [[ $? -ne 0 ]]; then
     exit 1;
 fi
@@ -23,7 +23,6 @@ while [ : ]; do
             echo -e "Usage:"
             echo -e "  $0 [--<flags> <values>]"
             echo -e "\nRequired flags:"
-            echo -e "  --chaincode-image: The container image of deployed chaincode - must be available within the Kubernetes cluster."
             echo -e "  --chaincode-label: The label of deployed chaincode."
             echo -e "  --channel-name: The name of the Hyperledger Fabric application channel the chaincode will be deployed to."
             echo -e "  --channel-org-name: The name of one of one Hyperledger Fabric organization in the channel the chaincode will be deployed to."
@@ -32,10 +31,6 @@ while [ : ]; do
             echo -e "  --signature-policy: The signature policy of the deployed chaincode, if applicable."
             echo -e "  --init-required: Specifies whether or not - 'true' or 'false' - the deployed chaincode requires an init function invoked before usage. If not specified, defaults to 'false'."
             exit 1
-            ;;
-        --chaincode-image)
-            CHAINCODE_IMAGE=$2
-            shift 2
             ;;
         --chaincode-label)
             CHAINCODE_LABEL=$2
@@ -70,7 +65,6 @@ done
 printf "${C_BLUE_BOLD}\ndeploy-chaincode.sh:${C_BLUE}\n > DEFINING INPUT VARIABLE\n\n${C_RESET}"
 
 set -x
-CHAINCODE_IMAGE=${CHAINCODE_IMAGE}
 CHAINCODE_LABEL=${CHAINCODE_LABEL}
 CHANNEL_NAME=${CHANNEL_NAME}
 CHANNEL_ORG_NAME=${CHANNEL_ORG_NAME}
@@ -79,7 +73,7 @@ SIGNATURE_POLICY=${SIGNATURE_POLICY:-"NA"}
 INIT_REQUIRED=${INIT_REQUIRED:-false}
 { set +x; } 2>/dev/null
 
-[[ -z ${CHAINCODE_IMAGE} || -z ${CHAINCODE_LABEL} || -z ${CHANNEL_NAME} || -z ${CHANNEL_ORG_NAME} || -z ${COLLECTIONS_CONFIG} || -z ${SIGNATURE_POLICY} || -z ${INIT_REQUIRED} ]] && {
+[[ -z ${CHAINCODE_LABEL} || -z ${CHANNEL_NAME} || -z ${CHANNEL_ORG_NAME} || -z ${COLLECTIONS_CONFIG} || -z ${SIGNATURE_POLICY} || -z ${INIT_REQUIRED} ]] && {
     >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} One or more mandatory arguments have not been provided. Exiting. ${C_RESET}"
     exit 1   
 }
@@ -107,6 +101,8 @@ INIT_REQUIRED=${INIT_REQUIRED:-false}
 KUBERNETES_CLI_HOSTNAME=${ENV_KUBERNETES_CLI_HOSTNAME}
 
 KUBERNETES_CLI_POD_NAME=$(kubectl get pods | grep ^${KUBERNETES_CLI_HOSTNAME}-* | awk '{print $1}')
+
+CHAINCODE_IMAGE=chaincode-${CHAINCODE_LABEL}
 
 # determine chaincode version
 CHAINCODE_VERSION=$(kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
@@ -331,7 +327,7 @@ EOF
 
 done
 
-kubectl wait pods --all --for=condition=Ready --timeout=600s || {
+sleep 10 && kubectl wait pods --all --for=condition=Ready --timeout=600s || {
     >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} One or more containers did not start. Exiting. ${C_RESET}"
     exit 1
 } 

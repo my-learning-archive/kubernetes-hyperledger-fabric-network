@@ -271,7 +271,7 @@ spec:
             - name: CORE_PEER_TLS_CLIENTKEY_FILE
               value: /etc/hyperledger/fabric/tls/server.key
             - name: CORE_PEER_LOCALMSPID
-              value: Org1MSP            
+              value: ${ORG_NAME^}MSP            
             - name: CORE_PEER_MSPCONFIGPATH
               value: /etc/hyperledger/fabric/msp/
             - name: CORE_PEER_ADDRESS
@@ -327,7 +327,7 @@ kubectl apply -f ${SCRIPT}/kubernetes-manifests/expand/${ORG_NAME}/${PEER_NAME}-
 kubectl wait pods --all --for=condition=Ready --timeout=600s || {
     >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} One or more containers did not start. Exiting. ${C_RESET}"
     exit 1
-} 
+}
 
 
 
@@ -410,7 +410,7 @@ peer lifecycle chaincode querycommitted --channelID '${CHANNEL_NAME}'
 	
 	for CHAINCODE_LABEL in ${CHANNEL_CHAINCODES_LIST}; do
 
-		echo -e "${C_BLUE}\nInstalling ${CHAINCODE_LABEL} chaincode ...${C_RESET}"
+		echo -e "${C_BLUE}\nInstalling ${CHAINCODE_LABEL} (${CHANNEL_NAME}) chaincode ...${C_RESET}"
 
 		kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
 ###################### INTERNAL COMMAND ######################

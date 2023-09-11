@@ -85,6 +85,23 @@ KUBERNETES_CLI_POD_NAME=$(kubectl get pods | grep ^${KUBERNETES_CLI_HOSTNAME}-* 
 
 PEERS_LIST=$(kubectl get services | awk '{print $1}' | grep ^peer | grep ${ORG_NAME} | sort)
 
+CHANNEL_CHAINCODES_LIST=$(kubectl exec -it ${KUBERNETES_CLI_POD_NAME} -- bash -c '
+###################### INTERNAL COMMAND ######################
+
+export CORE_PEER_LOCALMSPID='${CHANNEL_ORG_NAME^}'MSP
+export CORE_PEER_ADDRESS=peer0-'${CHANNEL_ORG_NAME}':7051
+export CORE_PEER_MSPCONFIGPATH=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/users/'${CHANNEL_ORG_NAME}'admin@'${CHANNEL_ORG_NAME}'/msp
+export CORE_PEER_TLS_CERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/server.crt
+export CORE_PEER_TLS_KEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/server.key
+export CORE_PEER_TLS_ROOTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/ca.crt
+export CORE_PEER_TLS_CLIENTROOTCAS_FILES=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/server.crt
+export CORE_PEER_TLS_CLIENTCERT_FILE=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/server.key
+export CORE_PEER_TLS_CLIENTKEY_FILE=${CRYPTO_HOME}/peerOrganizations/'${CHANNEL_ORG_NAME}'/peers/peer0-'${CHANNEL_ORG_NAME}'/tls/ca.crt
+
+peer lifecycle chaincode querycommitted --channelID '${CHANNEL_NAME}'
+
+###################### INTERNAL COMMAND ######################' | tail -n +2 | tr -d "," | awk '{print $2}')
+
 
 
 
@@ -247,4 +264,21 @@ done
         exit 1
     }
 
+done
+
+
+
+
+############################################################## 
+# RE-DEPLOYING APPLICATION CHANNEL CHAINCODES
+##############################################################
+
+printf "${C_BLUE_BOLD}\njoin-org-to-channel.sh:${C_BLUE}\n > RE-DEPLOYING APPLICATION CHANNEL CHAINCODES\n\n${C_RESET}"
+
+for CHAINCODE_LABEL in ${CHANNEL_CHAINCODES_LIST}; do
+
+    source ./deploy-chaincode.sh \
+        --chaincode-label ${CHAINCODE_LABEL} \
+        --channel-name ${CHANNEL_NAME} \
+        --channel-org-name ${CHANNEL_ORG_NAME}
 done
