@@ -9,8 +9,6 @@ This repository is an experimental attempt at implementing an Hyperledger Fabric
 
 *Note: This repository is purely experimental, with the purpose of learning how Hyperledger Fabric and Kubernetes interact with one another, it is not suitable for a real deployment, as it may have various negative security-related implications.*
 
-A detailed setup guide is available [**here**](./documentation/setup.md).
-
 ---
 ## Before start:
 
