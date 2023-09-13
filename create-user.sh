@@ -150,7 +150,7 @@ createUser \
 
 createUserTLS \
     --user-type ${USER_TYPE} \
-    --user-role ${USER_TOLE} \
+    --user-role ${USER_ROLE} \
     --user-hostname ${USER_HOSTNAME} \
     --user-username ${USER_USERNAME} \
     --user-password ${USER_PASSWORD} || exit 1
